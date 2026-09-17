@@ -1,110 +1,88 @@
-/**
- * sticks.js — Dayakattai / Bara stick logic + animations
- * Two sticks, each face: blank(0), 1, 2, or 3 pips
- * Value = sum of faces. Both blank = BARA = 12.
- */
+/* =========================================================
+   ASHTA CHAMMA - BARA / DAYAKATTAI STICKS
+========================================================= */
 
-const Sticks = (() => {
-    const NAMES = {
-        1: 'Dāyam',
-        2: 'Rendu',
-        3: 'Mūḍu',
-        4: 'Nālugu',
-        5: 'Ayidu',
-        6: 'Āru',
-        12: 'BĀRĀ'
-    };
+const THROW_NAMES = {
+    1: "Dayam",
+    2: "Rendu",
+    3: "Mūdu",
+    4: "Nālugu",
+    5: "Ayidu",
+    6: "Āru",
+    12: "Bārā"
+};
 
-    // Throws that allow new pawn entry AND give an extra turn
-    const ENTRY_THROWS = new Set([1, 6, 12]);
+/*
+    Required throw values in traditional Ashta Chamma.
+*/
+const THROW_VALUES = [1, 2, 3, 4, 5, 6, 12];
 
-    /**
-     * Roll one stick face: 0 (blank), 1, 2, or 3
-     */
-    function rollFace() {
-        return Math.floor(Math.random() * 4);
-    }
+/*
+    Weighted probabilities to simulate realistic
+    stick throws (higher values are rarer).
+*/
+const THROW_WEIGHTS = {
+    1: 20,   // Dayam - common
+    2: 20,   // Rendu - common
+    3: 18,   // Mūdu - common
+    4: 15,   // Nālugu
+    5: 12,   // Ayidu
+    6: 10,   // Āru
+    12: 5    // Bārā - rare, powerful
+};
 
-    /**
-     * Compute throw value from two faces
-     */
-    function computeValue(face1, face2) {
-        if (face1 === 0 && face2 === 0) return 12; // BARA
-        return face1 + face2;
-    }
-
-    /**
-     * Render pips on a stick element
-     */
-    function renderStick(stickEl, faceValue) {
-        stickEl.classList.toggle('blank', faceValue === 0);
-        const faceDiv = stickEl.querySelector('.stick-face');
-        faceDiv.innerHTML = '';
-        for (let i = 0; i < faceValue; i++) {
-            const pip = document.createElement('i');
-            pip.className = 'pip';
-            faceDiv.appendChild(pip);
+/* ---------------------------------------------------------
+   THROW BARA STICKS
+--------------------------------------------------------- */
+function throwBaraSticks() {
+    // Build a weighted pool
+    const pool = [];
+    for (const value of THROW_VALUES) {
+        const weight = THROW_WEIGHTS[value] || 1;
+        for (let i = 0; i < weight; i++) {
+            pool.push(value);
         }
     }
 
-    /**
-     * Animate the throw — returns a Promise that resolves with {face1, face2, value}
-     */
-    function animateThrow(stick0El, stick1El) {
-        return new Promise(resolve => {
-            // Start rolling animation
-            stick0El.classList.remove('rolling');
-            stick1El.classList.remove('rolling');
-            void stick0El.offsetWidth; // force reflow
-            stick0El.classList.add('rolling');
-            stick1El.classList.add('rolling');
+    // Random selection from weighted pool
+    const value = pool[Math.floor(Math.random() * pool.length)];
+    return value;
+}
 
-            // Flicker faces during roll
-            const flickerInterval = setInterval(() => {
-                renderStick(stick0El, rollFace());
-                renderStick(stick1El, rollFace());
-            }, 65);
+/* ---------------------------------------------------------
+   GET THROW NAME
+--------------------------------------------------------- */
+function getThrowName(value) {
+    return THROW_NAMES[value] || String(value);
+}
 
-            // End roll
-            setTimeout(() => {
-                clearInterval(flickerInterval);
-                stick0El.classList.remove('rolling');
-                stick1El.classList.remove('rolling');
+/* ---------------------------------------------------------
+   DISPLAY THROW RESULT
+--------------------------------------------------------- */
+function displayThrow(value) {
+    const result = document.getElementById("throwResult");
+    if (!result) return;
+    result.textContent = `${getThrowName(value)} (${value})`;
+}
 
-                const face1 = rollFace();
-                const face2 = rollFace();
-                renderStick(stick0El, face1);
-                renderStick(stick1El, face2);
+/* ---------------------------------------------------------
+   ANIMATE STICKS
+--------------------------------------------------------- */
+function animateSticks() {
+    const stick1 = document.getElementById("stick1");
+    const stick2 = document.getElementById("stick2");
 
-                const value = computeValue(face1, face2);
+    if (!stick1 || !stick2) return;
 
-                resolve({ face1, face2, value });
-            }, 750);
-        });
-    }
+    // Remove previous animation
+    stick1.classList.remove("flip1");
+    stick2.classList.remove("flip2");
 
-    /**
-     * Check if value allows new pawn entry and extra turn
-     */
-    function isEntryThrow(value) {
-        return ENTRY_THROWS.has(value);
-    }
+    // Force reflow so the animation restarts
+    void stick1.offsetWidth;
+    void stick2.offsetWidth;
 
-    /**
-     * Get display name for value
-     */
-    function getName(value) {
-        return NAMES[value] || String(value);
-    }
-
-    return {
-        NAMES,
-        ENTRY_THROWS,
-        rollFace,
-        computeValue,
-        renderStick,
-        animateThrow,
-        isEntryThrow,
-        getName
-    };
-})();
+    // Re-add animation classes
+    stick1.classList.add("flip1");
+    stick2.classList.add("flip2");
+}
