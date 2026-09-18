@@ -1,483 +1,234 @@
-/* =========================================================
-   ASHTA CHAMMA - GAME ENGINE & SOUND SYNTHESIS
-========================================================= */
-
-const PAWNS_PER_PLAYER = 6;
-const ENTRY_THROWS = new Set([1, 6, 12]);
-
-const players = {
-    1: { name: "Player 1", color: "player1" },
-    2: { name: "Player 2", color: "player2" }
-};
-
-let gameState = {
-    currentPlayer: 1,
-    lastThrow: null,
-    gameOver: false,
-    waitingForPawn: false,
-    movablePawns: [],
-    pawns: {
-        1: Array(PAWNS_PER_PLAYER).fill(-1),
-        2: Array(PAWNS_PER_PLAYER).fill(-1)
+const UI = {
+    setStatus(text, important=false) {
+        document.getElementById('actionText').textContent = text;
+        if(important) document.getElementById('systemMsg').textContent = text;
     },
-    homeCount: { 1: 0, 2: 0 }
+    
+    renderBoard(state) {
+        // Clear yards and board cells
+        document.getElementById('p1-yard').innerHTML = '';
+        document.getElementById('p2-yard').innerHTML = '';
+        document.querySelectorAll('.cell').forEach(c => c.innerHTML = '');
+
+        const createPawn = (player, index, pos) => {
+            const p = document.createElement('div');
+            p.className = `pawn p${player}`;
+            p.textContent = index + 1;
+            if (state.currentPlayer === player && state.waitingForPawn && state.movablePawns.includes(index)) {
+                p.classList.add('highlight');
+                p.onclick = () => window.Game.handlePawnClick(player, index);
+            }
+            return p;
+        };
+
+        // Render pawns
+        [1, 2].forEach(player => {
+            state.pawns[player].forEach((pos, index) => {
+                const pawnEl = createPawn(player, index, pos);
+                if (pos === -1) {
+                    document.getElementById(`p${player}-yard`).appendChild(pawnEl);
+                } else if (pos >= 0 && pos < 48) {
+                    const boardIdx = Board.getPathIndex(player, pos);
+                    const cell = document.querySelector(`.cell[data-index="${boardIdx}"]`);
+                    if(cell) cell.appendChild(pawnEl);
+                }
+                // pos === 48 is Home, not rendered (handled in score)
+            });
+        });
+    },
+
+    renderSticks(player, value) {
+        const container = document.querySelector('.sticks-container');
+        const label = document.getElementById('stickOwnerLabel');
+        
+        if (player === 1) {
+            container.classList.remove('p2-turn');
+            label.textContent = "Player 1 Sticks";
+        } else {
+            container.classList.add('p2-turn');
+            label.textContent = "Player 2 Sticks";
+        }
+
+        if (value === null) {
+            document.querySelectorAll('.stick-pips').forEach(p => p.innerHTML='');
+            document.getElementById('resultValue').textContent = "?";
+            document.getElementById('resultName').textContent = "Ready";
+            document.querySelector('.throw-result-display').classList.remove('extra-glow');
+        }
+    },
+
+    updateScores(state) {
+        document.getElementById('p1-home').textContent = `${state.homeCount[1]}/6 Home`;
+        document.getElementById('p2-home').textContent = `${state.homeCount[2]}/6 Home`;
+        
+        // Sync rotation based on role and turn (HOTSEAT ROTATION LOGIC)
+        const wrapper = document.getElementById('boardAndYards');
+        if (Multiplayer.role === 'guest') {
+            wrapper.classList.add('rotated'); // Permanently flip for Guest
+        } else if (Multiplayer.role === 'host') {
+            wrapper.classList.remove('rotated'); // Permanently upright for Host
+        } else {
+            // Local Hotseat Mode: Flip board to face current player
+            if (state.currentPlayer === 2) {
+                wrapper.classList.add('rotated');
+            } else {
+                wrapper.classList.remove('rotated');
+            }
+        }
+    }
 };
 
-function resetGameState() {
-    gameState = {
-        currentPlayer: 1,
-        lastThrow: null,
-        gameOver: false,
-        waitingForPawn: false,
-        movablePawns: [],
-        pawns: {
-            1: Array(PAWNS_PER_PLAYER).fill(-1),
-            2: Array(PAWNS_PER_PLAYER).fill(-1)
-        },
-        homeCount: { 1: 0, 2: 0 }
-    };
-    renderGame();
-    updateStatus("Player 1's Turn", "Throw the sticks");
-    updateControlsState();
-}
-
-function processThrow(value) {
-    if (gameState.gameOver || gameState.waitingForPawn) return;
-
-    gameState.lastThrow = value;
-    displayThrow(value);
-    playThrowSound();
-
-    const movable = getMovablePawns(gameState.currentPlayer, value);
-
-    if (movable.length === 0) {
-        updateStatus(
-            `${players[gameState.currentPlayer].name}`,
-            `No moves for ${getThrowName(value)}`
-        );
-
-        if (ENTRY_THROWS.has(value)) {
-            updateStatus(
-                `${players[gameState.currentPlayer].name}`,
-                `${getThrowName(value)} — Extra throw!`
-            );
-            gameState.lastThrow = null;
-            updateControlsState();
-            return;
-        }
-
-        setTimeout(switchTurn, 1200);
-        return;
+class GameEngine {
+    constructor() {
+        this.initGame();
     }
 
-    gameState.waitingForPawn = true;
-    gameState.movablePawns = movable;
-    highlightMovablePawns(movable);
-    updateStatus(`${players[gameState.currentPlayer].name}`, "Tap a glowing pawn");
-    updateControlsState();
-}
-
-function getMovablePawns(player, value) {
-    const result = [];
-    for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
-        const pos = gameState.pawns[player][i];
-        if (pos === -1) {
-            if (ENTRY_THROWS.has(value)) result.push(i);
-            continue;
-        }
-        if (pos === -2) continue;
-        const newPos = calculateNewPosition(player, pos, value);
-        if (newPos !== null) result.push(i);
-    }
-    return result;
-}
-
-function calculateNewPosition(player, position, value) {
-    const start = START_POSITION[player];
-    const relative = ((position - start) + OUTER_PATH.length) % OUTER_PATH.length;
-    const newRelative = relative + value;
-
-    if (newRelative >= OUTER_PATH.length) {
-        if (newRelative === OUTER_PATH.length) return -2;
-        return null;
-    }
-    return (start + newRelative) % OUTER_PATH.length;
-}
-
-function movePawn(player, pawnIndex) {
-    if (!gameState.waitingForPawn) return;
-    if (player !== gameState.currentPlayer) return;
-
-    const value = gameState.lastThrow;
-    const current = gameState.pawns[player][pawnIndex];
-
-    if (current === -1) {
-        if (!ENTRY_THROWS.has(value)) return;
-        gameState.pawns[player][pawnIndex] = START_POSITION[player];
-        captureOpponentIfNeeded(player, START_POSITION[player]);
-        playMoveSound();
-        afterMove(player, pawnIndex);
-        return;
+    initGame() {
+        this.gameState = {
+            currentPlayer: 1,
+            lastThrow: null,
+            gameOver: false,
+            waitingForPawn: false,
+            movablePawns: [],
+            // -1 = Yard, 0-47 = Path, 48 = Home
+            pawns: {
+                1: [-1, -1, -1, -1, -1, -1],
+                2: [-1, -1, -1, -1, -1, -1]
+            },
+            homeCount: { 1: 0, 2: 0 }
+        };
+        this.updateUI();
     }
 
-    const newPos = calculateNewPosition(player, current, value);
-    if (newPos === null) return;
+    handleThrow() {
+        if (this.gameState.waitingForPawn || this.gameState.gameOver) return;
 
-    if (newPos === -2) {
-        gameState.pawns[player][pawnIndex] = -2;
-        gameState.homeCount[player]++;
-        playHomeSound();
-        afterMove(player, pawnIndex);
-        return;
-    }
+        const btn = document.getElementById('throwBtn');
+        btn.disabled = true;
 
-    captureOpponentIfNeeded(player, newPos);
-    gameState.pawns[player][pawnIndex] = newPos;
-    playMoveSound();
-    afterMove(player, pawnIndex);
-}
+        Sticks.roll((val) => {
+            this.gameState.lastThrow = val;
+            this.calculateMovablePawns(val);
 
-function captureOpponentIfNeeded(player, position) {
-    if (SAFE_POSITIONS.has(position)) return;
-    const opponent = player === 1 ? 2 : 1;
-    let captured = false;
-
-    for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
-        if (gameState.pawns[opponent][i] === position) {
-            gameState.pawns[opponent][i] = -1;
-            captured = true;
-        }
-    }
-
-    if (captured) {
-        playCaptureSound();
-        updateMessage(`${players[player].name} captured an opponent!`);
-    }
-}
-
-function afterMove(player, pawnIndex) {
-    gameState.waitingForPawn = false;
-    gameState.movablePawns = [];
-    clearMovableHighlights();
-    renderGame();
-
-    if (gameState.homeCount[player] >= PAWNS_PER_PLAYER) {
-        gameState.gameOver = true;
-        playWinSound();
-        updateStatus(`${players[player].name} WINS! 🎉`, "All 6 pawns reached home!");
-        updateMessage(`Game over! ${players[player].name} is victorious!`);
-        updateControlsState();
-        if (window.Multiplayer) window.Multiplayer.sendState();
-        return;
-    }
-
-    const extraTurn = ENTRY_THROWS.has(gameState.lastThrow) || gameState.pawns[player][pawnIndex] === -2;
-    gameState.lastThrow = null;
-
-    if (extraTurn) {
-        updateStatus(`${players[player].name}'s Turn`, "Extra throw awarded!");
-        if (typeof resetThrowDisplay === "function") setTimeout(resetThrowDisplay, 1500);
-    } else {
-        switchTurn();
-    }
-
-    updateControlsState();
-    if (window.Multiplayer) window.Multiplayer.sendState();
-}
-
-function switchTurn() {
-    gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
-    gameState.lastThrow = null;
-    gameState.waitingForPawn = false;
-    gameState.movablePawns = [];
-    clearMovableHighlights();
-    renderGame();
-
-    if (typeof setStickColor === "function") setStickColor(gameState.currentPlayer);
-    if (typeof resetThrowDisplay === "function") resetThrowDisplay();
-
-    updateStatus(`${players[gameState.currentPlayer].name}'s Turn`, "Throw the sticks");
-    updateControlsState();
-    playTurnSound();
-}
-
-function highlightMovablePawns(pawnIndexes) {
-    clearMovableHighlights();
-    pawnIndexes.forEach(pawnIndex => {
-        const pawn = document.querySelector(`.pawn[data-player="${gameState.currentPlayer}"][data-pawn="${pawnIndex}"]`);
-        if (pawn) pawn.classList.add("movable");
-    });
-}
-
-function renderGame() {
-    document.querySelectorAll(".pawn").forEach(p => p.remove());
-
-    for (const player of [1, 2]) {
-        for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
-            if (typeof getYardSlot === "function") {
-                const slot = getYardSlot(player, i);
-                if (slot) slot.innerHTML = "";
+            if (this.gameState.movablePawns.length === 0) {
+                UI.setStatus(`No moves for ${val}! Swapping turns...`, true);
+                setTimeout(() => this.nextTurn(), 1500);
+            } else {
+                this.gameState.waitingForPawn = true;
+                UI.setStatus(`Select a pawn to move ${val} steps`);
             }
-        }
+            
+            if (Multiplayer.role === 'host') Multiplayer.sendState();
+            this.updateUI();
+            btn.disabled = false;
+        });
     }
 
-    for (const player of [1, 2]) {
-        for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
-            const pos = gameState.pawns[player][i];
+    calculateMovablePawns(val) {
+        const player = this.gameState.currentPlayer;
+        const pawns = this.gameState.pawns[player];
+        const movable = [];
+
+        pawns.forEach((pos, index) => {
             if (pos === -1) {
-                renderYardPawn(player, i);
-            } else if (pos >= 0) {
-                renderBoardPawn(player, i, pos);
+                if ([1, 6, 12].includes(val)) movable.push(index);
+            } else if (pos >= 0 && pos < 48) {
+                const newPos = pos + val;
+                if (newPos <= 48) movable.push(index); // 48 is exact home
+            }
+        });
+        this.gameState.movablePawns = movable;
+    }
+
+    handlePawnClick(player, pawnIndex) {
+        if (!this.gameState.waitingForPawn || player !== this.gameState.currentPlayer) return;
+        if (!this.gameState.movablePawns.includes(pawnIndex)) return;
+
+        const val = this.gameState.lastThrow;
+        const currentPos = this.gameState.pawns[player][pawnIndex];
+        let nextPos = currentPos === -1 ? 0 : currentPos + val;
+
+        this.movePawn(player, pawnIndex, nextPos);
+    }
+
+    movePawn(player, pawnIndex, nextPos) {
+        const isSpecial = [1, 6, 12].includes(this.gameState.lastThrow);
+        let captured = false;
+
+        // Capture Logic
+        if (nextPos >= 0 && nextPos < 48) {
+            const boardIdx = Board.getPathIndex(player, nextPos);
+            if (!Board.SAFE_SPACES.has(boardIdx)) {
+                const opponent = player === 1 ? 2 : 1;
+                this.gameState.pawns[opponent].forEach((pos, i) => {
+                    if (pos >= 0 && pos < 48 && Board.getPathIndex(opponent, pos) === boardIdx) {
+                        this.gameState.pawns[opponent][i] = -1; // Send to yard
+                        captured = true;
+                    }
+                });
             }
         }
-    }
 
-    const p1 = document.getElementById("p1Count");
-    const p2 = document.getElementById("p2Count");
-    if (p1) p1.textContent = `${gameState.homeCount[1]}/6 Home`;
-    if (p2) p2.textContent = `${gameState.homeCount[2]}/6 Home`;
-
-    document.getElementById("player1Card")?.classList.toggle("active", gameState.currentPlayer === 1);
-    document.getElementById("player2Card")?.classList.toggle("active", gameState.currentPlayer === 2);
-}
-
-function renderBoardPawn(player, pawnIndex, position) {
-    if (typeof getPathCell === "function") {
-        const cell = getPathCell(position);
-        if (cell) cell.appendChild(createPawn(player, pawnIndex));
-    }
-}
-
-function renderYardPawn(player, pawnIndex) {
-    if (typeof getYardSlot === "function") {
-        const slot = getYardSlot(player, pawnIndex);
-        if (slot) slot.appendChild(createPawn(player, pawnIndex));
-    }
-}
-
-function createPawn(player, pawnIndex) {
-    const pawn = document.createElement("div");
-    pawn.className = `pawn ${players[player].color}`;
-    pawn.dataset.player = player;
-    pawn.dataset.pawn = pawnIndex;
-    pawn.textContent = pawnIndex + 1;
-    return pawn;
-}
-
-function getSerializableState() {
-    return JSON.parse(JSON.stringify(gameState));
-}
-
-function loadRemoteState(remoteState) {
-    if (!remoteState) return;
-    gameState = JSON.parse(JSON.stringify(remoteState));
-    renderGame();
-
-    if (typeof setStickColor === "function") setStickColor(gameState.currentPlayer);
-
-    if (gameState.waitingForPawn && gameState.movablePawns?.length) {
-        highlightMovablePawns(gameState.movablePawns);
-    } else {
-        clearMovableHighlights();
-    }
-
-    if (gameState.gameOver) {
-        const winner = gameState.homeCount[1] >= PAWNS_PER_PLAYER ? 1 : 2;
-        updateStatus(`${players[winner].name} WINS! 🎉`, "Game finished");
-    } else {
-        updateStatus(
-            `${players[gameState.currentPlayer].name}'s Turn`,
-            gameState.waitingForPawn ? "Select glowing pawn" : "Throw sticks"
-        );
-    }
-    updateControlsState();
-}
-
-function updateStatus(title, subtitle) {
-    const turn = document.getElementById("turnText");
-    const throwText = document.getElementById("throwText");
-    if (turn) turn.textContent = title;
-    if (throwText) throwText.textContent = subtitle;
-}
-
-function updateMessage(message) {
-    const box = document.getElementById("messageBox");
-    if (box) box.textContent = message;
-}
-
-function updateControlsState() {
-    const throwBtn = document.getElementById("throwButton");
-    if (!throwBtn) return;
-
-    if (gameState.gameOver || gameState.waitingForPawn) {
-        throwBtn.disabled = true;
-        return;
-    }
-
-    if (window.Multiplayer && window.Multiplayer.connected) {
-        throwBtn.disabled = window.Multiplayer.localPlayer !== gameState.currentPlayer;
-    } else {
-        throwBtn.disabled = false;
-    }
-}
-
-/* =========================================================
-   PROCEDURAL SOUND ENGINE
-========================================================= */
-
-let audioContext = null;
-
-function getAudioContext() {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioContext.state === "suspended") {
-        audioContext.resume();
-    }
-    return audioContext;
-}
-
-function playNoise(duration, lowFreq, highFreq, volume, type = "bandpass") {
-    if (window.soundEnabled === false) return;
-    try {
-        const ctx = getAudioContext();
-        const bufferSize = ctx.sampleRate * duration;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
-        const noiseNode = ctx.createBufferSource();
-        noiseNode.buffer = buffer;
-
-        const filter = ctx.createBiquadFilter();
-        filter.type = type;
-        filter.frequency.setValueAtTime(lowFreq, ctx.currentTime);
-        if (highFreq > lowFreq) {
-            filter.frequency.exponentialRampToValueAtTime(highFreq, ctx.currentTime + duration);
+        // Apply Move
+        if (nextPos === 48) {
+            this.gameState.pawns[player][pawnIndex] = 48; // Reached Home
+            this.gameState.homeCount[player]++;
+            Sound.playHomeSound();
+        } else {
+            this.gameState.pawns[player][pawnIndex] = nextPos;
+            captured ? Sound.playCaptureSound() : Sound.playMoveSound();
         }
 
-        const gainNode = ctx.createGain();
-        gainNode.gain.setValueAtTime(volume, ctx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        this.gameState.waitingForPawn = false;
+        this.gameState.movablePawns = [];
 
-        noiseNode.connect(filter);
-        filter.connect(gainNode);
-        gainNode.connect(ctx.destination);
+        if (this.gameState.homeCount[player] === 6) {
+            this.gameState.gameOver = true;
+            Sound.playWinSound();
+            UI.setStatus(`PLAYER ${player} WINS!`, true);
+        } else {
+            if (isSpecial || captured) {
+                UI.setStatus("Extra Turn!", true);
+            } else {
+                this.nextTurn();
+                return; // nextTurn calls updateUI
+            }
+        }
+        
+        if (Multiplayer.role === 'host') Multiplayer.sendState();
+        this.updateUI();
+    }
 
-        noiseNode.start();
-        noiseNode.stop(ctx.currentTime + duration);
-    } catch (e) {}
-}
+    nextTurn() {
+        this.gameState.currentPlayer = this.gameState.currentPlayer === 1 ? 2 : 1;
+        this.gameState.lastThrow = null;
+        this.gameState.waitingForPawn = false;
+        Sound.playTurnSound();
+        if (Multiplayer.role === 'host') Multiplayer.sendState();
+        this.updateUI();
+    }
 
-function playWoodClick(pitch, duration, volume) {
-    if (window.soundEnabled === false) return;
-    try {
-        const ctx = getAudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(pitch, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(pitch * 0.4, ctx.currentTime + duration);
-
-        gain.gain.setValueAtTime(volume, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
-
-        playNoise(duration * 0.6, 1200, 2000, volume * 0.6, "highpass");
-    } catch (e) {}
-}
-
-function playThrowSound() {
-    for (let i = 0; i < 4; i++) {
-        setTimeout(() => {
-            playWoodClick(230 - i * 25, 0.08, 0.12 - i * 0.02);
-        }, i * 65);
+    updateUI() {
+        UI.renderBoard(this.gameState);
+        UI.renderSticks(this.gameState.currentPlayer, this.gameState.lastThrow);
+        UI.updateScores(this.gameState);
+        
+        const turnText = document.getElementById('turnText');
+        const throwBtn = document.getElementById('throwBtn');
+        
+        if (this.gameState.gameOver) {
+            turnText.textContent = "Game Over!";
+            throwBtn.style.display = "none";
+        } else {
+            turnText.textContent = `Player ${this.gameState.currentPlayer}'s Turn`;
+            
+            // Only show button if not waiting for a pawn move
+            throwBtn.style.display = this.gameState.waitingForPawn ? "none" : "block";
+            
+            document.getElementById('p1-bar').classList.toggle('active', this.gameState.currentPlayer === 1);
+            document.getElementById('p2-bar').classList.toggle('active', this.gameState.currentPlayer === 2);
+        }
     }
 }
 
-function playMoveSound() {
-    playNoise(0.2, 450, 250, 0.05, "bandpass");
-    setTimeout(() => playWoodClick(280, 0.09, 0.08), 150);
-}
-
-function playCaptureSound() {
-    playWoodClick(180, 0.25, 0.25);
-    playWoodClick(90, 0.35, 0.15);
-}
-
-function playHomeSound() {
-    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
-        setTimeout(() => {
-            try {
-                const ctx = getAudioContext();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = "triangle";
-                osc.frequency.setValueAtTime(freq, ctx.currentTime);
-                gain.gain.setValueAtTime(0.08, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.52);
-            } catch (e) {}
-        }, idx * 100);
-    });
-}
-
-function playTurnSound() {
-    [587.33, 880.00].forEach((freq, idx) => {
-        setTimeout(() => {
-            try {
-                const ctx = getAudioContext();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = "sine";
-                osc.frequency.setValueAtTime(freq, ctx.currentTime);
-                gain.gain.setValueAtTime(0.03, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.22);
-            } catch (e) {}
-        }, idx * 60);
-    });
-}
-
-function playWinSound() {
-    const chords = [
-        [261.63, 329.63, 392.00, 523.25],
-        [392.00, 493.88, 587.33, 783.99],
-        [523.25, 659.25, 783.99, 1046.50]
-    ];
-    chords.forEach((chord, chordIdx) => {
-        setTimeout(() => {
-            chord.forEach(freq => {
-                try {
-                    const ctx = getAudioContext();
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "triangle";
-                    osc.frequency.setValueAtTime(freq, ctx.currentTime);
-                    gain.gain.setValueAtTime(0.05, ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.start();
-                    osc.stop(ctx.currentTime + 0.72);
-                } catch (e) {}
-            });
-        }, chordIdx * 250);
-    });
-}
-
-function initializeGame() {
-    if (typeof createBoard === "function") createBoard();
-    resetGameState();
-}
+window.Game = new GameEngine();
