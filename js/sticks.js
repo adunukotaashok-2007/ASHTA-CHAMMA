@@ -39,7 +39,7 @@ const Sticks = {
                 const pips = s.querySelector('.stick-pips');
                 pips.innerHTML = '';
                 
-                // PIP DOT MAPPING FOR 2 STICKS
+                // PIP DOT MAPPING FOR 2 STICKS:
                 // 1 = 1,0 | 2 = 1,1 | 3 = 2,1 | 4 = 2,2 | 5 = 3,2 | 6 = 3,3 | 12 = 0,0 (Bārā!)
                 let dotsCount = 0;
                 if (value === 1) dotsCount = s.dataset.stick === "1" ? 1 : 0;
