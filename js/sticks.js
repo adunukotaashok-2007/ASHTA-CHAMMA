@@ -39,13 +39,16 @@ const Sticks = {
                 const pips = s.querySelector('.stick-pips');
                 pips.innerHTML = '';
                 
+                // PIP DOT MAPPING FOR 2 STICKS
+                // 1 = 1,0 | 2 = 1,1 | 3 = 2,1 | 4 = 2,2 | 5 = 3,2 | 6 = 3,3 | 12 = 0,0 (Bārā!)
                 let dotsCount = 0;
                 if (value === 1) dotsCount = s.dataset.stick === "1" ? 1 : 0;
                 else if (value === 2) dotsCount = 1;
                 else if (value === 3) dotsCount = s.dataset.stick === "1" ? 2 : 1;
                 else if (value === 4) dotsCount = 2;
                 else if (value === 5) dotsCount = s.dataset.stick === "1" ? 3 : 2;
-                else if (value >= 6) dotsCount = 3;
+                else if (value === 6) dotsCount = 3; // Āru = 3 + 3
+                else if (value === 12) dotsCount = 0; // Bārā = 0 + 0
 
                 for (let i = 0; i < dotsCount; i++) {
                     const dot = document.createElement('div');
@@ -59,7 +62,6 @@ const Sticks = {
             
             if ([1, 6, 12].includes(value)) {
                 display.classList.add('extra-glow');
-                document.getElementById('actionText').textContent = "Extra Turn!";
             }
 
             callback(value);
