@@ -1,155 +1,68 @@
-/* =========================================================
-   ASHTA CHAMMA - APP INITIALIZATION & CONTROLS
-========================================================= */
+const Sticks = {
+    THROW_NAMES: { 1: "Dayam", 2: "Rendu", 3: "Mūdu", 4: "Nālugu", 5: "Ayidu", 6: "Āru", 12: "Bārā" },
+    
+    roll(callback) {
+        const values = [1, 2, 3, 4, 5, 6, 12];
+        const weights = [22, 20, 18, 15, 12, 8, 5];
+        
+        let totalWeight = weights.reduce((a, b) => a + b, 0);
+        let random = Math.random() * totalWeight;
+        let result = 1;
 
-window.soundEnabled = true;
-
-document.addEventListener("DOMContentLoaded", () => {
-    setupButtons();
-    setupPawnInteraction();
-    setupMobileAudioUnlock();
-    showHome();
-});
-
-function showHome() {
-    document.getElementById("homeScreen")?.classList.remove("hidden");
-    document.getElementById("gameScreen")?.classList.add("hidden");
-}
-
-function showGame() {
-    document.getElementById("homeScreen")?.classList.add("hidden");
-    document.getElementById("gameScreen")?.classList.remove("hidden");
-
-    initializeGame();
-    if (typeof setStickColor === "function") setStickColor(1);
-    if (typeof resetThrowDisplay === "function") resetThrowDisplay();
-    updateMessage("Player 1 starts. Throw the sticks!");
-}
-
-function setupMobileAudioUnlock() {
-    const unlock = () => {
-        getAudioContext();
-        document.removeEventListener("touchstart", unlock);
-        document.removeEventListener("pointerdown", unlock);
-    };
-    document.addEventListener("touchstart", unlock, { once: true });
-    document.addEventListener("pointerdown", unlock, { once: true });
-}
-
-function setupButtons() {
-    document.getElementById("playLocalButton")?.addEventListener("click", () => {
-        getAudioContext();
-        Multiplayer.role = "local";
-        Multiplayer.connected = false;
-        showGame();
-    });
-
-    document.getElementById("backHomeButton")?.addEventListener("click", () => {
-        showHome();
-    });
-
-    document.getElementById("throwButton")?.addEventListener("click", () => {
-        getAudioContext();
-        if (gameState.gameOver || gameState.waitingForPawn) return;
-
-        if (Multiplayer.connected && Multiplayer.localPlayer !== gameState.currentPlayer) {
-            updateMessage("Wait for your opponent's turn.");
-            return;
+        for (let i = 0; i < values.length; i++) {
+            if (random < weights[i]) {
+                result = values[i];
+                break;
+            }
+            random -= weights[i];
         }
 
-        animateSticks();
-        const value = throwBaraSticks();
+        Sound.playThrowSound();
+        this.animateSticks(result, callback);
+    },
 
-        if (!Multiplayer.connected || Multiplayer.role === "host") {
-            processThrow(value);
-            if (Multiplayer.connected) Multiplayer.sendState();
-        } else {
-            Multiplayer.sendAction({ type: "throw", value });
-        }
-    });
+    animateSticks(value, callback) {
+        const sticks = document.querySelectorAll('.stick');
+        const resultVal = document.getElementById('resultValue');
+        const resultName = document.getElementById('resultName');
+        const display = document.querySelector('.throw-result-display');
 
-    document.getElementById("newGameButton")?.addEventListener("click", () => {
-        getAudioContext();
-        resetGameState();
-        if (typeof setStickColor === "function") setStickColor(1);
-        if (typeof resetThrowDisplay === "function") resetThrowDisplay();
-        playMoveSound();
-        if (Multiplayer.connected) Multiplayer.sendState();
-        updateMessage("New game started!");
-    });
+        display.classList.remove('extra-glow');
+        resultVal.textContent = "?";
+        resultName.textContent = "Rolling...";
 
-    document.getElementById("soundButton")?.addEventListener("click", () => {
-        window.soundEnabled = !window.soundEnabled;
-        const btn = document.getElementById("soundButton");
-        if (btn) btn.textContent = window.soundEnabled ? "🔊" : "🔇";
-        if (window.soundEnabled) {
-            getAudioContext();
-            playTurnSound();
-        }
-    });
+        sticks.forEach(s => s.classList.add('rolling'));
 
-    document.getElementById("createRoomButton")?.addEventListener("click", () => {
-        getAudioContext();
-        document.getElementById("homeRoomArea")?.classList.remove("hidden");
-        document.getElementById("joinInputArea")?.classList.add("hidden");
-        Multiplayer.createRoom();
-    });
+        setTimeout(() => {
+            sticks.forEach(s => {
+                s.classList.remove('rolling');
+                const pips = s.querySelector('.stick-pips');
+                pips.innerHTML = '';
+                
+                let dotsCount = 0;
+                if (value === 1) dotsCount = s.dataset.stick === "1" ? 1 : 0;
+                else if (value === 2) dotsCount = 1;
+                else if (value === 3) dotsCount = s.dataset.stick === "1" ? 2 : 1;
+                else if (value === 4) dotsCount = 2;
+                else if (value === 5) dotsCount = s.dataset.stick === "1" ? 3 : 2;
+                else if (value >= 6) dotsCount = 3;
 
-    document.getElementById("joinRoomButton")?.addEventListener("click", () => {
-        document.getElementById("homeRoomArea")?.classList.remove("hidden");
-        document.getElementById("joinInputArea")?.classList.remove("hidden");
-        const status = document.getElementById("homeRoomStatus");
-        if (status) status.textContent = "Enter Player 1's code below";
-    });
-
-    document.getElementById("connectButton")?.addEventListener("click", () => {
-        getAudioContext();
-        const code = document.getElementById("roomInput")?.value.trim();
-        Multiplayer.joinRoom(code);
-    });
-
-    document.getElementById("copyCodeButton")?.addEventListener("click", () => {
-        const code = document.getElementById("roomCode")?.textContent;
-        if (code && code !== "----") {
-            navigator.clipboard?.writeText(code).then(() => {
-                const st = document.getElementById("homeRoomStatus");
-                if (st) st.textContent = "Code copied to clipboard!";
+                for (let i = 0; i < dotsCount; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'pip';
+                    pips.appendChild(dot);
+                }
             });
-        }
-    });
 
-    const openRules = () => document.getElementById("rulesModal")?.classList.remove("hidden");
-    const closeRules = () => document.getElementById("rulesModal")?.classList.add("hidden");
+            resultVal.textContent = value;
+            resultName.textContent = this.THROW_NAMES[value];
+            
+            if ([1, 6, 12].includes(value)) {
+                display.classList.add('extra-glow');
+                document.getElementById('actionText').textContent = "Extra Turn!";
+            }
 
-    document.getElementById("rulesButton")?.addEventListener("click", openRules);
-    document.getElementById("gameRulesButton")?.addEventListener("click", openRules);
-    document.getElementById("closeRules")?.addEventListener("click", closeRules);
-
-    document.getElementById("rulesModal")?.addEventListener("click", e => {
-        if (e.target.id === "rulesModal") closeRules();
-    });
-}
-
-function setupPawnInteraction() {
-    document.addEventListener("click", event => {
-        const pawn = event.target.closest(".pawn");
-        if (!pawn) return;
-
-        const player = Number(pawn.dataset.player);
-        const pawnIndex = Number(pawn.dataset.pawn);
-
-        if (!gameState.waitingForPawn || player !== gameState.currentPlayer) return;
-
-        if (Multiplayer.connected && Multiplayer.localPlayer !== gameState.currentPlayer) {
-            updateMessage("Wait for your turn.");
-            return;
-        }
-
-        if (Multiplayer.connected && Multiplayer.role === "guest") {
-            Multiplayer.sendAction({ type: "move", player, pawnIndex });
-            return;
-        }
-
-        movePawn(player, pawnIndex);
-    });
-}
+            callback(value);
+        }, 600);
+    }
+};
