@@ -1,5 +1,5 @@
 /* =========================================================
-   ASHTA CHAMMA - GAME ENGINE
+   ASHTA CHAMMA - GAME ENGINE & SOUND SYNTHESIS
 ========================================================= */
 
 const PAWNS_PER_PLAYER = 6;
@@ -10,17 +10,12 @@ const players = {
     2: { name: "Player 2", color: "player2" }
 };
 
-/*
-    Game state.
-    Pawn position codes:
-      -1 = in yard (not yet entered)
-       0+ = on outer path index
-      -2 = home (finished)
-*/
 let gameState = {
     currentPlayer: 1,
     lastThrow: null,
     gameOver: false,
+    waitingForPawn: false,
+    movablePawns: [],
     pawns: {
         1: Array(PAWNS_PER_PLAYER).fill(-1),
         2: Array(PAWNS_PER_PLAYER).fill(-1)
@@ -28,33 +23,26 @@ let gameState = {
     homeCount: { 1: 0, 2: 0 }
 };
 
-let waitingForPawn = false;
-
-/* ---------------------------------------------------------
-   RESET GAME
---------------------------------------------------------- */
 function resetGameState() {
     gameState = {
         currentPlayer: 1,
         lastThrow: null,
         gameOver: false,
+        waitingForPawn: false,
+        movablePawns: [],
         pawns: {
             1: Array(PAWNS_PER_PLAYER).fill(-1),
             2: Array(PAWNS_PER_PLAYER).fill(-1)
         },
         homeCount: { 1: 0, 2: 0 }
     };
-    waitingForPawn = false;
     renderGame();
     updateStatus("Player 1's Turn", "Throw the Bara sticks");
+    updateControlsState();
 }
 
-/* ---------------------------------------------------------
-   PROCESS A THROW
---------------------------------------------------------- */
 function processThrow(value) {
-    if (gameState.gameOver) return;
-    if (waitingForPawn) return;
+    if (gameState.gameOver || gameState.waitingForPawn) return;
 
     gameState.lastThrow = value;
     displayThrow(value);
@@ -65,107 +53,78 @@ function processThrow(value) {
     if (movable.length === 0) {
         updateStatus(
             `${players[gameState.currentPlayer].name}`,
-            `No legal move for ${getThrowName(value)}`
+            `No moves for ${getThrowName(value)}`
         );
 
-        // Entry throws still give another throw
         if (ENTRY_THROWS.has(value)) {
             updateStatus(
                 `${players[gameState.currentPlayer].name}`,
-                `${getThrowName(value)} — throw again`
+                `${getThrowName(value)} — Extra throw!`
             );
             gameState.lastThrow = null;
+            updateControlsState();
             return;
         }
 
-        switchTurn();
+        setTimeout(switchTurn, 1000);
         return;
     }
 
-    waitingForPawn = true;
+    gameState.waitingForPawn = true;
+    gameState.movablePawns = movable;
     highlightMovablePawns(movable);
-    updateStatus(
-        `${players[gameState.currentPlayer].name}`,
-        "Select a highlighted pawn"
-    );
+    updateStatus(`${players[gameState.currentPlayer].name}`, "Tap a glowing pawn");
+    updateControlsState();
 }
 
-/* ---------------------------------------------------------
-   GET MOVABLE PAWNS
---------------------------------------------------------- */
 function getMovablePawns(player, value) {
     const result = [];
-
-    for (let pawnIndex = 0; pawnIndex < PAWNS_PER_PLAYER; pawnIndex++) {
-        const position = gameState.pawns[player][pawnIndex];
-
-        // Yard - needs entry throw
-        if (position === -1) {
-            if (ENTRY_THROWS.has(value)) {
-                result.push(pawnIndex);
-            }
+    for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
+        const pos = gameState.pawns[player][i];
+        if (pos === -1) {
+            if (ENTRY_THROWS.has(value)) result.push(i);
             continue;
         }
-
-        // Already home
-        if (position === -2) continue;
-
-        // On path
-        const newPosition = calculateNewPosition(player, position, value);
-        if (newPosition !== null) {
-            result.push(pawnIndex);
-        }
+        if (pos === -2) continue;
+        const newPos = calculateNewPosition(player, pos, value);
+        if (newPos !== null) result.push(i);
     }
-
     return result;
 }
 
-/* ---------------------------------------------------------
-   CALCULATE NEW POSITION
---------------------------------------------------------- */
 function calculateNewPosition(player, position, value) {
-    const playerStart = START_POSITION[player];
-    const relative = ((position - playerStart) + OUTER_PATH.length) % OUTER_PATH.length;
+    const start = START_POSITION[player];
+    const relative = ((position - start) + OUTER_PATH.length) % OUTER_PATH.length;
     const newRelative = relative + value;
 
-    // Complete one full route -> enter home
     if (newRelative >= OUTER_PATH.length) {
-        // Only exact landing counts as home
-        if (newRelative === OUTER_PATH.length) {
-            return -2;
-        }
-        // Overshoot -> invalid move
-        return null;
+        if (newRelative === OUTER_PATH.length) return -2; // Exact home
+        return null; // Overshot home
     }
-
-    return (playerStart + newRelative) % OUTER_PATH.length;
+    return (start + newRelative) % OUTER_PATH.length;
 }
 
-/* ---------------------------------------------------------
-   MOVE PAWN
---------------------------------------------------------- */
 function movePawn(player, pawnIndex) {
-    if (!waitingForPawn) return;
+    if (!gameState.waitingForPawn) return;
     if (player !== gameState.currentPlayer) return;
 
     const value = gameState.lastThrow;
     const current = gameState.pawns[player][pawnIndex];
 
-    // Enter pawn from yard
+    // Enter from yard
     if (current === -1) {
         if (!ENTRY_THROWS.has(value)) return;
         gameState.pawns[player][pawnIndex] = START_POSITION[player];
+        captureOpponentIfNeeded(player, START_POSITION[player]);
         playMoveSound();
         afterMove(player, pawnIndex);
         return;
     }
 
-    // Normal move
-    const newPosition = calculateNewPosition(player, current, value);
-    if (newPosition === null) return;
+    const newPos = calculateNewPosition(player, current, value);
+    if (newPos === null) return;
 
-    // Home
-    if (newPosition === -2) {
+    if (newPos === -2) {
         gameState.pawns[player][pawnIndex] = -2;
         gameState.homeCount[player]++;
         playHomeSound();
@@ -173,20 +132,14 @@ function movePawn(player, pawnIndex) {
         return;
     }
 
-    // Attempt capture
-    captureOpponentIfNeeded(player, newPosition);
-
-    gameState.pawns[player][pawnIndex] = newPosition;
+    captureOpponentIfNeeded(player, newPos);
+    gameState.pawns[player][pawnIndex] = newPos;
     playMoveSound();
     afterMove(player, pawnIndex);
 }
 
-/* ---------------------------------------------------------
-   CAPTURE OPPONENT
---------------------------------------------------------- */
 function captureOpponentIfNeeded(player, position) {
     if (SAFE_POSITIONS.has(position)) return;
-
     const opponent = player === 1 ? 2 : 1;
     let captured = false;
 
@@ -199,143 +152,97 @@ function captureOpponentIfNeeded(player, position) {
 
     if (captured) {
         playCaptureSound();
-        updateMessage(`${players[player].name} captured a pawn!`);
+        updateMessage(`${players[player].name} captured an opponent!`);
     }
 }
 
-/* ---------------------------------------------------------
-   AFTER MOVE
---------------------------------------------------------- */
 function afterMove(player, pawnIndex) {
-    waitingForPawn = false;
+    gameState.waitingForPawn = false;
+    gameState.movablePawns = [];
     clearMovableHighlights();
     renderGame();
 
-    // Check win
     if (gameState.homeCount[player] >= PAWNS_PER_PLAYER) {
         gameState.gameOver = true;
         playWinSound();
-        updateStatus(
-            `${players[player].name} WINS! 🎉`,
-            "All 6 pawns reached home"
-        );
-        updateMessage(`${players[player].name} has won the game!`);
-
+        updateStatus(`${players[player].name} WINS! 🎉`, "All 6 pawns reached home!");
+        updateMessage(`Game over! ${players[player].name} is victorious!`);
+        updateControlsState();
         if (window.Multiplayer) window.Multiplayer.sendState();
         return;
     }
 
-    // Extra turn conditions
-    const extraTurn = ENTRY_THROWS.has(gameState.lastThrow) ||
-                      gameState.pawns[player][pawnIndex] === -2;
+    const extraTurn = ENTRY_THROWS.has(gameState.lastThrow) || gameState.pawns[player][pawnIndex] === -2;
+    gameState.lastThrow = null;
 
     if (extraTurn) {
-        gameState.lastThrow = null;
-        updateStatus(
-            `${players[player].name}'s Turn`,
-            "Extra throw!"
-        );
+        updateStatus(`${players[player].name}'s Turn`, "Extra throw awarded!");
     } else {
         switchTurn();
     }
 
+    updateControlsState();
     if (window.Multiplayer) window.Multiplayer.sendState();
 }
 
-/* ---------------------------------------------------------
-   SWITCH TURN
---------------------------------------------------------- */
 function switchTurn() {
     gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
     gameState.lastThrow = null;
-    waitingForPawn = false;
+    gameState.waitingForPawn = false;
+    gameState.movablePawns = [];
     clearMovableHighlights();
     renderGame();
-
-    updateStatus(
-        `${players[gameState.currentPlayer].name}'s Turn`,
-        "Throw the Bara sticks"
-    );
-
+    updateStatus(`${players[gameState.currentPlayer].name}'s Turn`, "Throw the Bara sticks");
+    updateControlsState();
     playTurnSound();
 }
 
-/* ---------------------------------------------------------
-   HIGHLIGHT MOVABLE PAWNS
---------------------------------------------------------- */
 function highlightMovablePawns(pawnIndexes) {
     clearMovableHighlights();
     pawnIndexes.forEach(pawnIndex => {
-        const pawn = document.querySelector(
-            `.pawn[data-player="${gameState.currentPlayer}"][data-pawn="${pawnIndex}"]`
-        );
+        const pawn = document.querySelector(`.pawn[data-player="${gameState.currentPlayer}"][data-pawn="${pawnIndex}"]`);
         highlightPawn(pawn);
     });
 }
 
-/* ---------------------------------------------------------
-   RENDER GAME
---------------------------------------------------------- */
 function renderGame() {
-    // Clear all pawns
-    document.querySelectorAll(".pawn").forEach(pawn => pawn.remove());
+    document.querySelectorAll(".pawn").forEach(p => p.remove());
 
-    // Render pawns
     for (const player of [1, 2]) {
-        for (let pawnIndex = 0; pawnIndex < PAWNS_PER_PLAYER; pawnIndex++) {
-            const position = gameState.pawns[player][pawnIndex];
-
-            if (position === -1) {
-                renderYardPawn(player, pawnIndex);
-            } else if (position === -2) {
-                // Home pawns are shown as count on player card
-            } else {
-                renderBoardPawn(player, pawnIndex, position);
+        for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
+            const pos = gameState.pawns[player][i];
+            if (pos === -1) {
+                renderYardPawn(player, i);
+            } else if (pos >= 0) {
+                renderBoardPawn(player, i, pos);
             }
         }
     }
 
-    // Update home counts
     const p1 = document.getElementById("p1Count");
     const p2 = document.getElementById("p2Count");
     if (p1) p1.textContent = `${gameState.homeCount[1]}/6 Home`;
     if (p2) p2.textContent = `${gameState.homeCount[2]}/6 Home`;
 
-    // Highlight active player
-    document.getElementById("player1Card")
-        ?.classList.toggle("active", gameState.currentPlayer === 1);
-    document.getElementById("player2Card")
-        ?.classList.toggle("active", gameState.currentPlayer === 2);
+    document.getElementById("player1Card")?.classList.toggle("active", gameState.currentPlayer === 1);
+    document.getElementById("player2Card")?.classList.toggle("active", gameState.currentPlayer === 2);
 }
 
-/* ---------------------------------------------------------
-   RENDER BOARD PAWN
---------------------------------------------------------- */
 function renderBoardPawn(player, pawnIndex, position) {
     const cell = getPathCell(position);
     if (!cell) return;
-    const pawn = createPawn(player, pawnIndex);
-    cell.appendChild(pawn);
+    cell.appendChild(createPawn(player, pawnIndex));
 }
 
-/* ---------------------------------------------------------
-   RENDER YARD PAWN
---------------------------------------------------------- */
 function renderYardPawn(player, pawnIndex) {
     const yard = player === 1 ? PLAYER1_YARD : PLAYER2_YARD;
-    const coordinate = yard[pawnIndex];
-    if (!coordinate) return;
-
-    const cell = getCell(coordinate[0], coordinate[1]);
+    const coord = yard[pawnIndex];
+    if (!coord) return;
+    const cell = getCell(coord[0], coord[1]);
     if (!cell) return;
-
-    const pawn = createPawn(player, pawnIndex);
-    cell.appendChild(pawn);
+    cell.appendChild(createPawn(player, pawnIndex));
 }
 
-/* ---------------------------------------------------------
-   CREATE PAWN ELEMENT
---------------------------------------------------------- */
 function createPawn(player, pawnIndex) {
     const pawn = document.createElement("div");
     pawn.className = `pawn ${players[player].color}`;
@@ -345,40 +252,33 @@ function createPawn(player, pawnIndex) {
     return pawn;
 }
 
-/* ---------------------------------------------------------
-   SERIALIZE STATE (multiplayer)
---------------------------------------------------------- */
 function getSerializableState() {
     return JSON.parse(JSON.stringify(gameState));
 }
 
-/* ---------------------------------------------------------
-   LOAD REMOTE STATE
---------------------------------------------------------- */
 function loadRemoteState(remoteState) {
     if (!remoteState) return;
-
     gameState = JSON.parse(JSON.stringify(remoteState));
-    waitingForPawn = false;
-    clearMovableHighlights();
     renderGame();
 
+    if (gameState.waitingForPawn && gameState.movablePawns?.length) {
+        highlightMovablePawns(gameState.movablePawns);
+    } else {
+        clearMovableHighlights();
+    }
+
     if (gameState.gameOver) {
-        const winner = gameState.homeCount[1] >= 6 ? 1 : 2;
+        const winner = gameState.homeCount[1] >= PAWNS_PER_PLAYER ? 1 : 2;
         updateStatus(`${players[winner].name} WINS! 🎉`, "Game finished");
     } else {
         updateStatus(
             `${players[gameState.currentPlayer].name}'s Turn`,
-            gameState.lastThrow
-                ? `Last throw: ${getThrowName(gameState.lastThrow)}`
-                : "Throw the Bara sticks"
+            gameState.waitingForPawn ? "Select glowing pawn" : "Throw Bara sticks"
         );
     }
+    updateControlsState();
 }
 
-/* ---------------------------------------------------------
-   STATUS / MESSAGE UI
---------------------------------------------------------- */
 function updateStatus(title, subtitle) {
     const turn = document.getElementById("turnText");
     const throwText = document.getElementById("throwText");
@@ -391,8 +291,24 @@ function updateMessage(message) {
     if (box) box.textContent = message;
 }
 
+function updateControlsState() {
+    const throwBtn = document.getElementById("throwButton");
+    if (!throwBtn) return;
+
+    if (gameState.gameOver || gameState.waitingForPawn) {
+        throwBtn.disabled = true;
+        return;
+    }
+
+    if (window.Multiplayer && window.Multiplayer.connected) {
+        throwBtn.disabled = window.Multiplayer.localPlayer !== gameState.currentPlayer;
+    } else {
+        throwBtn.disabled = false;
+    }
+}
+
 /* =========================================================
-   ADVANCED PROCEDURAL SOUND ENGINE
+   PROCEDURAL SOUND ENGINE
 ========================================================= */
 
 let audioContext = null;
@@ -407,205 +323,146 @@ function getAudioContext() {
     return audioContext;
 }
 
-/**
- * Filtered noise generator (used for scrapes, impacts, crackle).
- */
 function playNoise(duration, lowFreq, highFreq, volume, type = "bandpass") {
     if (window.soundEnabled === false) return;
+    try {
+        const ctx = getAudioContext();
+        const bufferSize = ctx.sampleRate * duration;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
 
-    const ctx = getAudioContext();
-    const bufferSize = ctx.sampleRate * duration;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-    }
+        const noiseNode = ctx.createBufferSource();
+        noiseNode.buffer = buffer;
 
-    const noiseNode = ctx.createBufferSource();
-    noiseNode.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = type;
+        filter.frequency.setValueAtTime(lowFreq, ctx.currentTime);
+        if (highFreq > lowFreq) {
+            filter.frequency.exponentialRampToValueAtTime(highFreq, ctx.currentTime + duration);
+        }
 
-    const filter = ctx.createBiquadFilter();
-    filter.type = type;
-    filter.frequency.setValueAtTime(lowFreq, ctx.currentTime);
-    if (highFreq > lowFreq) {
-        filter.frequency.exponentialRampToValueAtTime(highFreq, ctx.currentTime + duration);
-    }
-    filter.Q.value = 2.0;
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
 
-    const gainNode = ctx.createGain();
-    gainNode.gain.setValueAtTime(volume, ctx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        noiseNode.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(ctx.destination);
 
-    noiseNode.connect(filter);
-    filter.connect(gainNode);
-    gainNode.connect(ctx.destination);
-
-    noiseNode.start();
-    noiseNode.stop(ctx.currentTime + duration);
+        noiseNode.start();
+        noiseNode.stop(ctx.currentTime + duration);
+    } catch (e) {}
 }
 
-/**
- * Wood clack: sine sweep + high-pass noise crackle.
- */
 function playWoodClick(pitch, duration, volume) {
     if (window.soundEnabled === false) return;
+    try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
 
-    const ctx = getAudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(pitch, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(pitch * 0.4, ctx.currentTime + duration);
 
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(pitch, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(pitch * 0.4, ctx.currentTime + duration);
+        gain.gain.setValueAtTime(volume, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
 
-    gain.gain.setValueAtTime(volume, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + duration);
-
-    playNoise(duration * 0.6, 1200, 2000, volume * 0.7, "highpass");
+        playNoise(duration * 0.6, 1200, 2000, volume * 0.6, "highpass");
+    } catch (e) {}
 }
 
-/**
- * 1. THROW STICKS - realistic wooden bounce cascade.
- */
 function playThrowSound() {
-    if (window.soundEnabled === false) return;
-
-    const bounces = 4;
-    let delay = 0;
-
-    for (let i = 0; i < bounces; i++) {
+    for (let i = 0; i < 4; i++) {
         setTimeout(() => {
-            const pitch = 220 - (i * 25) + (Math.random() * 30);
-            const duration = 0.08 - (i * 0.01);
-            const vol = 0.12 - (i * 0.02);
-            playWoodClick(pitch, duration, vol);
-        }, delay);
-        delay += 45 + (Math.random() * 35);
+            playWoodClick(230 - i * 25, 0.08, 0.12 - i * 0.02);
+        }, i * 65);
     }
 }
 
-/**
- * 2. MOVE PAWN - slide + land plop.
- */
 function playMoveSound() {
-    if (window.soundEnabled === false) return;
-    playNoise(0.25, 450, 250, 0.05, "bandpass");
-    setTimeout(() => {
-        playWoodClick(280, 0.1, 0.08);
-    }, 180);
+    playNoise(0.2, 450, 250, 0.05, "bandpass");
+    setTimeout(() => playWoodClick(280, 0.09, 0.08), 150);
 }
 
-/**
- * 3. CAPTURE - dramatic knock-out.
- */
 function playCaptureSound() {
-    if (window.soundEnabled === false) return;
     playWoodClick(180, 0.25, 0.25);
     playWoodClick(90, 0.35, 0.15);
-    setTimeout(() => {
-        playNoise(0.3, 1500, 300, 0.08, "bandpass");
-    }, 30);
 }
 
-/**
- * 4. HOME - pentatonic chime arpeggio.
- */
 function playHomeSound() {
-    if (window.soundEnabled === false) return;
-
-    const ctx = getAudioContext();
-    const notes = [523.25, 659.25, 783.99, 1046.50];
-
-    notes.forEach((freq, idx) => {
+    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
         setTimeout(() => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = "triangle";
-            osc.frequency.setValueAtTime(freq, ctx.currentTime);
-            gain.gain.setValueAtTime(0.08, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.62);
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.52);
+            } catch (e) {}
         }, idx * 100);
     });
 }
 
-/**
- * 5. TURN CHANGE - dual-tone bell.
- */
 function playTurnSound() {
-    if (window.soundEnabled === false) return;
-
-    const ctx = getAudioContext();
-    const tones = [587.33, 880.00];
-
-    tones.forEach((freq) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        gain.gain.setValueAtTime(0.03, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.26);
+    [587.33, 880.00].forEach((freq, idx) => {
+        setTimeout(() => {
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.03, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.22);
+            } catch (e) {}
+        }, idx * 60);
     });
 }
 
-/**
- * 6. WIN - triumphant multi-chord fanfare with vibrato.
- */
 function playWinSound() {
-    if (window.soundEnabled === false) return;
-
-    const ctx = getAudioContext();
     const chords = [
         [261.63, 329.63, 392.00, 523.25],
         [392.00, 493.88, 587.33, 783.99],
         [523.25, 659.25, 783.99, 1046.50]
     ];
-
     chords.forEach((chord, chordIdx) => {
         setTimeout(() => {
-            chord.forEach((freq) => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = "triangle";
-                osc.frequency.setValueAtTime(freq, ctx.currentTime);
-
-                const lfo = ctx.createOscillator();
-                const lfoGain = ctx.createGain();
-                lfo.frequency.value = 6;
-                lfoGain.gain.value = 4;
-                lfo.connect(lfoGain);
-                lfoGain.connect(osc.frequency);
-
-                gain.gain.setValueAtTime(0.05, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-
-                lfo.start();
-                osc.start();
-                lfo.stop(ctx.currentTime + 0.8);
-                osc.stop(ctx.currentTime + 0.82);
+            chord.forEach(freq => {
+                try {
+                    const ctx = getAudioContext();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = "triangle";
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.05, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.72);
+                } catch (e) {}
             });
         }, chordIdx * 250);
     });
 }
 
-/* ---------------------------------------------------------
-   INITIALIZE GAME
---------------------------------------------------------- */
 function initializeGame() {
     createBoard();
     resetGameState();
