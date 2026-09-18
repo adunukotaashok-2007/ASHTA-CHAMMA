@@ -137,13 +137,9 @@ class GameEngine {
 
         pawns.forEach((pos, index) => {
             if (pos === -1) {
-                // ENTRY RULES: Dayam (1) or Āru (6) release pawns. Bārā (12) does NOT.
-                if (val === 1 || val === 6) {
-                    movable.push(index);
-                }
+                if (val === 1 || val === 6) movable.push(index);
             } else if (pos >= 0 && pos < 48) {
                 const targetPos = this.calculateNextPosition(player, pos, val);
-                // Can only move if target position is strictly greater than current position
                 if (targetPos > pos && targetPos <= 48) {
                     movable.push(index);
                 }
@@ -155,16 +151,11 @@ class GameEngine {
     calculateNextPosition(player, currentPos, val) {
         const hasKill = this.gameState.hasKilled[player];
         
-        // RULE: Without a kill, pawns CLAMP at step 23 (the 24th tile - end of outer cycle).
-        // They CANNOT move past 23 nor loop around! They STICK at 23.
+        // Stuck at the end of Outer Ring (index 23) if no kill
         if (!hasKill) {
-            if (currentPos + val >= 23) {
-                return 23; // Clamps at end of outer cycle!
-            }
+            if (currentPos + val >= 23) return 23;
             return currentPos + val;
         }
-        
-        // With a kill unlocked, pawns can proceed into step 24+
         return currentPos + val;
     }
 
@@ -175,12 +166,9 @@ class GameEngine {
         const val = this.gameState.lastThrow;
         const currentPos = this.gameState.pawns[player][pawnIndex];
 
-        // Throwing 6 releases ALL pawns currently in the yard onto start cell
         if (currentPos === -1 && val === 6) {
             this.gameState.pawns[player].forEach((pPos, i) => {
-                if (pPos === -1) {
-                    this.gameState.pawns[player][i] = 0;
-                }
+                if (pPos === -1) this.gameState.pawns[player][i] = 0;
             });
             Sound.playMoveSound();
             this.finishMove(player, false);
@@ -194,14 +182,13 @@ class GameEngine {
     movePawn(player, pawnIndex, nextPos) {
         let captured = false;
 
-        // Capture Check
         if (nextPos >= 0 && nextPos < 48) {
             const boardIdx = Board.getPathIndex(player, nextPos);
             if (!Board.SAFE_SPACES.has(boardIdx)) {
                 const opponent = player === 1 ? 2 : 1;
                 this.gameState.pawns[opponent].forEach((pos, i) => {
                     if (pos >= 0 && pos < 48 && Board.getPathIndex(opponent, pos) === boardIdx) {
-                        this.gameState.pawns[opponent][i] = -1; // Send to yard
+                        this.gameState.pawns[opponent][i] = -1;
                         captured = true;
                     }
                 });
@@ -209,7 +196,7 @@ class GameEngine {
         }
 
         if (captured) {
-            this.gameState.hasKilled[player] = true; // Unlock Inner Loop for all pawns!
+            this.gameState.hasKilled[player] = true; 
         }
 
         if (nextPos === 48) {
@@ -226,7 +213,6 @@ class GameEngine {
 
     finishMove(player, captured) {
         const isSpecial = [1, 6, 12].includes(this.gameState.lastThrow);
-
         this.gameState.waitingForPawn = false;
         this.gameState.movablePawns = [];
 
@@ -254,26 +240,6 @@ class GameEngine {
         Sound.playTurnSound();
         if (Multiplayer.role === 'host') Multiplayer.sendState();
         this.updateUI();
-    }
-
-    updateUI() {
-        UI.renderBoard(this.gameState);
-        UI.renderSticks(this.gameState.currentPlayer, this.gameState.lastThrow);
-        UI.updateScores(this.gameState);
-        
-        const turnText = document.getElementById('turnText');
-        const throwBtn = document.getElementById('throwBtn');
-        
-        if (this.gameState.gameOver) {
-            turnText.textContent = "Game Over!";
-            throwBtn.style.display = "none";
-        } else {
-            turnText.textContent = `Player ${this.gameState.currentPlayer}'s Turn`;
-            throwBtn.style.display = this.gameState.waitingForPawn ? "none" : "block";
-            
-            document.getElementById('p1-bar').classList.toggle('active', this.gameState.currentPlayer === 1);
-            document.getElementById('p2-bar').classList.toggle('active', this.gameState.currentPlayer === 2);
-        }
     }
 }
 
