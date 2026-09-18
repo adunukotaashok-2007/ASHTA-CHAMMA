@@ -1,14 +1,13 @@
 /* =========================================================
    ASHTA CHAMMA - BOARD
-   Traditional direction + safe X zones
+   Counter-clockwise movement + traditional X safe zones
 ========================================================= */
 
 const BOARD_SIZE = 7;
 
 /*
-    OUTER PATH - COUNTER-CLOCKWISE (traditional feel)
-    Starts near top-left and goes down the left side first.
-    This reverses the previous clockwise direction.
+    OUTER PATH - Counter-clockwise direction
+    Starts at top-left, goes DOWN left side first.
 */
 const OUTER_PATH = [
     // Left column (top → bottom)
@@ -22,28 +21,27 @@ const OUTER_PATH = [
 ];
 
 /*
-    Entry / start squares
-    Player 1: top-middle
-    Player 2: bottom-middle
+    Player start positions on the new path
+    Player 1 → top middle [0, 3] → path index 21
+    Player 2 → bottom middle [6, 3] → path index 9
 */
 const START_POSITION = {
-    1: 21, // [0, 3] on the new path
-    2: 9   // [6, 3] on the new path
+    1: 21,
+    2: 9
 };
 
 /*
-    Safe squares (traditional X positions)
-    Corners + mid-sides of the outer track
+    Traditional safe zones - corners + mid-sides
 */
 const SAFE_POSITIONS = new Set([
-    0,  // top-left corner
-    3,  // left mid
-    6,  // bottom-left corner
-    9,  // bottom mid (P2 start) 
-    12, // bottom-right corner
-    15, // right mid
-    18, // top-right corner
-    21  // top mid (P1 start)
+    0,   // top-left corner
+    3,   // left mid
+    6,   // bottom-left corner
+    9,   // bottom mid (P2 start)
+    12,  // bottom-right corner
+    15,  // right mid
+    18,  // top-right corner
+    21   // top mid (P1 start)
 ]);
 
 const HOME_POSITION = { row: 3, col: 3 };
@@ -60,35 +58,24 @@ function createBoard() {
             cell.dataset.row = row;
             cell.dataset.col = col;
 
-            // checker pattern
             if ((row + col) % 2 === 1) cell.classList.add("dark");
 
-            // center home
             if (row === HOME_POSITION.row && col === HOME_POSITION.col) {
                 cell.classList.add("home");
             }
 
-            // path + safe + start
             const pathIndex = OUTER_PATH.findIndex(p => p[0] === row && p[1] === col);
             if (pathIndex !== -1) {
                 cell.dataset.path = pathIndex;
-
-                if (SAFE_POSITIONS.has(pathIndex)) {
-                    cell.classList.add("safe");
-                }
-                if (pathIndex === START_POSITION[1]) {
-                    cell.classList.add("start1");
-                }
-                if (pathIndex === START_POSITION[2]) {
-                    cell.classList.add("start2");
-                }
+                if (SAFE_POSITIONS.has(pathIndex)) cell.classList.add("safe");
+                if (pathIndex === START_POSITION[1]) cell.classList.add("start1");
+                if (pathIndex === START_POSITION[2]) cell.classList.add("start2");
             }
 
             board.appendChild(cell);
         }
     }
 
-    // external yards
     buildYardSlots(1);
     buildYardSlots(2);
 }
