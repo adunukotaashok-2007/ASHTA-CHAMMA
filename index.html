@@ -5,134 +5,137 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ashta Chamma</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
 
-<!-- ===================== HOME SCREEN ===================== -->
-<div id="homeScreen" class="screen">
-    <div class="home-content">
-        <div class="home-title">
-            <div class="home-telugu">అష్ట చమ్మ</div>
-            <div class="home-english">ASHTA CHAMMA</div>
-            <div class="home-sub">Traditional 2-Player Board Game</div>
-        </div>
-
-        <div class="home-sticks-preview">
-            <div class="preview-stick p1-stick-color"><span class="dot"></span></div>
-            <div class="preview-stick p2-stick-color"><span class="dot"></span></div>
-        </div>
-
-        <button id="playLocalButton" class="home-btn primary">🎮 PLAY LOCAL (Same Phone)</button>
-        <button id="createRoomButton" class="home-btn">🌐 CREATE ROOM (Player 1)</button>
-        <button id="joinRoomButton" class="home-btn">🔗 JOIN ROOM (Player 2)</button>
-        <button id="rulesButton" class="home-btn secondary">📜 RULES</button>
-
-        <div id="homeRoomArea" class="home-room hidden">
-            <div id="homeRoomStatus">Offline</div>
-            <div class="room-code-row">
-                <strong id="roomCode">----</strong>
-                <button id="copyCodeButton" class="copy-btn">📋</button>
+    <!-- HOME SCREEN -->
+    <div id="homeScreen" class="screen">
+        <h1 class="game-title">అష్టా చమ్మా</h1>
+        <div class="menu-container">
+            <button id="playLocalBtn" class="menu-btn primary">📱 PLAY LOCAL (HOTSEAT)</button>
+            <div class="online-section">
+                <button id="hostBtn" class="menu-btn host-btn">🌐 CREATE ONLINE ROOM</button>
+                <div class="join-box">
+                    <input type="text" id="joinIdInput" placeholder="Enter Room ID" autocomplete="off">
+                    <button id="joinBtn" class="menu-btn join-btn">JOIN</button>
+                </div>
             </div>
-            <div id="joinInputArea" class="hidden">
-                <input id="roomInput" type="text" placeholder="Paste room code">
-                <button id="connectButton" class="home-btn primary">CONNECT & PLAY</button>
+            <p id="connectionStatus"></p>
+            <div id="roomCodeContainer" class="hidden">
+                <p>Your Room ID:</p>
+                <h3 id="roomCodeDisplay"></h3>
+                <button id="copyRoomBtn" class="small-btn">📋 Copy</button>
+                <p class="waiting-text">Waiting for opponent...</p>
             </div>
         </div>
     </div>
-</div>
 
-<!-- ===================== GAME SCREEN ===================== -->
-<div id="gameScreen" class="screen hidden">
+    <!-- GAME SCREEN -->
+    <div id="gameScreen" class="screen hidden">
+        
+        <!-- Header -->
+        <div class="game-header">
+            <button id="backBtn" class="icon-btn">←</button>
+            <h2 class="small-title">అష్టా చమ్మా</h2>
+            <button id="soundToggleBtn" class="icon-btn">🔊</button>
+        </div>
 
-    <header class="game-top">
-        <button id="backHomeButton" class="icon-btn">←</button>
-        <div class="game-title">అష్ట చమ్మ</div>
-        <button id="soundButton" class="icon-btn">🔊</button>
-    </header>
-
-    <div class="player-bars">
-        <div id="player1Card" class="pbar pbar1">
-            <div class="pbar-dot red"></div>
-            <div class="pbar-info">
-                <span>PLAYER 1</span>
-                <span id="p1Count">0/6 Home</span>
+        <!-- Score Bars -->
+        <div class="score-bars">
+            <div id="p1-bar" class="player-bar p1">
+                <span class="dot"></span> PLAYER 1 <br><span id="p1-home">0/6 Home</span>
             </div>
-        </div>
-        <div id="player2Card" class="pbar pbar2">
-            <div class="pbar-info right">
-                <span>PLAYER 2</span>
-                <span id="p2Count">0/6 Home</span>
-            </div>
-            <div class="pbar-dot blue"></div>
-        </div>
-    </div>
-
-    <div class="status-bar">
-        <div id="turnText">Player 1's Turn</div>
-        <div id="throwText">Throw the sticks</div>
-    </div>
-
-    <div class="board-wrap">
-        <div id="yard1" class="yard yard1">
-            <div class="yard-label">P1</div>
-            <div id="yard1Slots" class="yard-slots"></div>
-        </div>
-
-        <main id="board" class="board"></main>
-
-        <div id="yard2" class="yard yard2">
-            <div class="yard-label">P2</div>
-            <div id="yard2Slots" class="yard-slots"></div>
-        </div>
-    </div>
-
-    <section class="sticks-area">
-        <div id="stickOwner" class="stick-owner">Player 1 Sticks</div>
-
-        <div class="stick-box">
-            <div id="stick1" class="stick stick-p1">
-                <div class="stick-face" id="face1"></div>
-            </div>
-            <div id="stick2" class="stick stick-p1">
-                <div class="stick-face" id="face2"></div>
+            <div id="p2-bar" class="player-bar p2">
+                PLAYER 2 <span class="dot"></span> <br><span id="p2-home">0/6 Home</span>
             </div>
         </div>
 
-        <div id="throwResult" class="throw-result">
-            <div class="throw-ready">Ready</div>
+        <!-- Status -->
+        <div class="status-bar">
+            <h3 id="turnText">Player 1's Turn</h3>
+            <p id="actionText">Throw the sticks</p>
         </div>
 
-        <button id="throwButton" class="throw-button">🪵 THROW STICKS</button>
-    </section>
+        <!-- ROTATING PLAY AREA: P2 Yard (Top) -> Board -> P1 Yard (Bottom) -->
+        <div id="boardAndYards" class="board-and-yards">
+            <div id="p2-yard" class="yard horizontal p2-yard"></div>
+            
+            <div class="board-container">
+                <div id="board" class="board"></div>
+            </div>
+            
+            <div id="p1-yard" class="yard horizontal p1-yard"></div>
+        </div>
 
-    <div class="game-bottom">
-        <button id="newGameButton" class="small-btn">🔄 New</button>
-        <div id="messageBox" class="message-box">Good luck!</div>
-        <button id="gameRulesButton" class="small-btn">📜</button>
+        <!-- Sticks & Controls (Always at bottom for physical reach) -->
+        <div class="controls-area">
+            <div class="sticks-container">
+                <p id="stickOwnerLabel" class="stick-label">Player 1 Sticks</p>
+                <div class="sticks-wrapper" id="sticksWrapper">
+                    <div class="stick" data-stick="1"><div class="stick-pips"></div></div>
+                    <div class="stick" data-stick="2"><div class="stick-pips"></div></div>
+                </div>
+                <div class="throw-result-display">
+                    <span id="resultValue">?</span>
+                    <span id="resultName">Ready</span>
+                </div>
+            </div>
+            <button id="throwBtn" class="action-btn throw-btn">🪵 THROW STICKS</button>
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="bottom-bar">
+            <button id="newGameBtn" class="text-btn">🔄 New</button>
+            <span id="systemMsg">Game started!</span>
+        </div>
     </div>
-</div>
 
-<!-- RULES MODAL -->
-<div id="rulesModal" class="modal hidden">
-    <div class="modal-content">
-        <button id="closeRules" class="close-button">✕</button>
-        <h2>Ashta Chamma Rules</h2>
-        <ul>
-            <li><b>2 Players</b> — 6 pawns each</li>
-            <li><b>Sticks</b>: Dayam(1), Rendu(2), Mūdu(3), Nālugu(4), Ayidu(5), Āru(6), Bārā(12)</li>
-            <li><b>Enter board</b> only with 1, 6 or 12</li>
-            <li><b>1, 6, 12</b> also give Extra Throw</li>
-            <li>Land on opponent → capture (except ✕ safe)</li>
-            <li>First to get all 6 pawns to 🏠 Home wins</li>
-        </ul>
-    </div>
-</div>
-
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/board.js"></script>
-<script src="js/sticks.js"></script>
-<script src="js/game.js"></script>
-<script src="js/multiplayer.js"></script>
-<script src="js/app.js"></script>
+    <!-- AUDIO SCRIPT -->
+    <script>
+        const Sound = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+            enabled: true,
+            playNoise(dur, freq, type='square') {
+                if(!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(freq/2, this.ctx.currentTime + dur);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + dur);
+            },
+            playWoodClick() { this.playNoise(0.1, 800, 'square'); },
+            playThrowSound() { 
+                if(!this.enabled) return;
+                setTimeout(() => this.playWoodClick(), 0);
+                setTimeout(() => this.playWoodClick(), 150);
+                setTimeout(() => this.playWoodClick(), 300);
+            },
+            playMoveSound() { this.playNoise(0.1, 400, 'sine'); },
+            playCaptureSound() { this.playNoise(0.3, 150, 'sawtooth'); },
+            playHomeSound() { this.playNoise(0.5, 600, 'sine'); setTimeout(()=>this.playNoise(0.5, 800, 'sine'), 200); },
+            playTurnSound() { this.playNoise(0.2, 500, 'triangle'); },
+            playWinSound() { this.playNoise(1.5, 800, 'sine'); }
+        };
+    </script>
+    <script src="js/multiplayer.js"></script>
+    <script src="js/sticks.js"></script>
+    <script src="js/board.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
