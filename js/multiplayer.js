@@ -13,7 +13,7 @@ window.Multiplayer = {
     createRoom() {
         this.role = "host";
         this.localPlayer = 1;
-        
+
         const status = document.getElementById("homeRoomStatus");
         if (status) status.textContent = "Creating Room...";
 
@@ -42,7 +42,7 @@ window.Multiplayer = {
     joinRoom(roomId) {
         roomId = String(roomId || "").trim();
         const status = document.getElementById("homeRoomStatus");
-        
+
         if (!roomId) {
             if (status) status.textContent = "Please enter a code!";
             return;
@@ -81,7 +81,6 @@ window.Multiplayer = {
                 this.sendState();
             }
 
-            // Successfully connected -> jump straight into the Game screen!
             setTimeout(() => {
                 if (typeof showGame === "function") showGame();
             }, 800);
@@ -102,7 +101,7 @@ window.Multiplayer = {
         if (!this.connection || !this.connection.open) return;
         this.connection.send({
             type: "state",
-            state: getSerializableState() // Calls from game.js
+            state: getSerializableState()
         });
     },
 
@@ -125,7 +124,7 @@ window.Multiplayer = {
         const area = document.getElementById("homeRoomArea");
         const code = document.getElementById("roomCode");
         const status = document.getElementById("homeRoomStatus");
-        
+
         if (area) area.classList.remove("hidden");
         if (code) code.textContent = id;
         if (status) status.textContent = "Waiting for Player 2 to join...";
@@ -136,7 +135,6 @@ function handleRemoteAction(action) {
     if (!action) return;
 
     if (Multiplayer.role === "host") {
-        // Host applies the action, then sends the updated state to Guest
         if (action.type === "throw") {
             if (typeof processThrow === "function") processThrow(action.value);
             Multiplayer.sendState();
@@ -145,7 +143,6 @@ function handleRemoteAction(action) {
             Multiplayer.sendState();
         }
     } else if (Multiplayer.role === "guest") {
-        // Guest just applies the action visually locally (State overrides will sync it perfectly)
         if (action.type === "throw") {
             if (typeof processThrow === "function") processThrow(action.value);
         } else if (action.type === "move") {
