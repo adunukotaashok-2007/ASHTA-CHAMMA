@@ -41,13 +41,17 @@
             <button id="soundToggleBtn" class="icon-btn">🔊</button>
         </div>
 
-        <!-- Score Bars -->
+        <!-- Score & Kill Status Bars -->
         <div class="score-bars">
             <div id="p1-bar" class="player-bar p1">
-                <span class="dot"></span> PLAYER 1 <br><span id="p1-home">0/6 Home</span>
+                <span class="dot"></span> PLAYER 1
+                <br><span id="p1-home">0/6 Home</span>
+                <br><span id="p1-kill" class="kill-badge locked">⚔️ Kill: NO</span>
             </div>
             <div id="p2-bar" class="player-bar p2">
-                PLAYER 2 <span class="dot"></span> <br><span id="p2-home">0/6 Home</span>
+                PLAYER 2 <span class="dot"></span>
+                <br><span id="p2-home">0/6 Home</span>
+                <br><span id="p2-kill" class="kill-badge locked">⚔️ Kill: NO</span>
             </div>
         </div>
 
@@ -57,7 +61,7 @@
             <p id="actionText">Throw the sticks</p>
         </div>
 
-        <!-- ROTATING PLAY AREA: P2 Yard (Top) -> Board -> P1 Yard (Bottom) -->
+        <!-- ROTATING PLAY AREA -->
         <div id="boardAndYards" class="board-and-yards">
             <div id="p2-yard" class="yard horizontal p2-yard"></div>
             
@@ -68,7 +72,7 @@
             <div id="p1-yard" class="yard horizontal p1-yard"></div>
         </div>
 
-        <!-- Sticks & Controls (Always at bottom for physical reach) -->
+        <!-- Sticks & Controls -->
         <div class="controls-area">
             <div class="sticks-container">
                 <p id="stickOwnerLabel" class="stick-label">Player 1 Sticks</p>
