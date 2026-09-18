@@ -1,7 +1,7 @@
 const Multiplayer = {
     peer: null,
     connection: null,
-    role: 'local', // 'local', 'host', 'guest'
+    role: 'local',
 
     initHost() {
         this.role = 'host';
