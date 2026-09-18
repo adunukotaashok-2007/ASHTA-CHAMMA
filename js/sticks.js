@@ -1,3 +1,7 @@
+/* =========================================================
+   ASHTA CHAMMA - BARA STICKS
+========================================================= */
+
 const THROW_NAMES = {
     1: "Dayam", 2: "Rendu", 3: "Mūdu", 4: "Nālugu",
     5: "Ayidu", 6: "Āru", 12: "Bārā"
@@ -6,19 +10,6 @@ const THROW_NAMES = {
 const THROW_VALUES = [1, 2, 3, 4, 5, 6, 12];
 const THROW_WEIGHTS = { 1: 22, 2: 20, 3: 18, 4: 15, 5: 12, 6: 8, 12: 5 };
 const SPECIAL_THROWS = new Set([1, 6, 12]);
-
-/*
-  Stick face patterns (dots) for visual display.
-  Two sticks together make the throw value.
-  We show a simple pip pattern on each stick.
-*/
-function pipsForStick(n) {
-    // return how many dots to draw on one stick face (0-3 style)
-    if (n <= 0) return 0;
-    if (n === 1) return 1;
-    if (n === 2) return 2;
-    return 3;
-}
 
 function throwBaraSticks() {
     const pool = [];
@@ -62,7 +53,6 @@ function drawStickFace(faceEl, dots) {
 }
 
 function showStickFaces(value) {
-    // Split visual dots across 2 sticks for flavour
     let a = 0, b = 0;
     if (value === 1)      { a = 1; b = 0; }
     else if (value === 2) { a = 1; b = 1; }
@@ -70,7 +60,7 @@ function showStickFaces(value) {
     else if (value === 4) { a = 2; b = 2; }
     else if (value === 5) { a = 3; b = 2; }
     else if (value === 6) { a = 3; b = 3; }
-    else if (value === 12){ a = 3; b = 3; } // Bārā - both full + special label
+    else if (value === 12){ a = 3; b = 3; }
 
     drawStickFace(document.getElementById("face1"), a);
     drawStickFace(document.getElementById("face2"), b);
