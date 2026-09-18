@@ -1,6 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
     
-    // Unlock Audio via user gesture
     const unlockAudio = () => {
         Sound.init();
         document.removeEventListener('touchstart', unlockAudio);
