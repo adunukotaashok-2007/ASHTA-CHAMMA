@@ -1,170 +1,59 @@
-/* =========================================================
-   ASHTA CHAMMA - APP INITIALIZATION & CONTROLS
-========================================================= */
-
-window.soundEnabled = true;
-
-document.addEventListener("DOMContentLoaded", () => {
-    setupButtons();
-    setupPawnInteraction();
-    setupMobileAudioUnlock();
-    showHome();
-});
-
-/* --- SCREEN SWITCHING --- */
-function showHome() {
-    document.getElementById("homeScreen")?.classList.remove("hidden");
-    document.getElementById("gameScreen")?.classList.add("hidden");
-}
-
-function showGame() {
-    document.getElementById("homeScreen")?.classList.add("hidden");
-    document.getElementById("gameScreen")?.classList.remove("hidden");
+document.addEventListener('DOMContentLoaded', () => {
     
-    // Setup initial game state when entering the board
-    initializeGame();
-    if (typeof setStickColor === "function") setStickColor(1);
-    if (typeof resetThrowDisplay === "function") resetThrowDisplay();
-    updateMessage("Player 1 starts. Throw the sticks!");
-}
-
-/* --- AUDIO UNLOCK FOR MOBILE --- */
-function setupMobileAudioUnlock() {
-    const unlock = () => {
-        getAudioContext();
-        document.removeEventListener("touchstart", unlock);
-        document.removeEventListener("pointerdown", unlock);
+    // Unlock Audio via user gesture
+    const unlockAudio = () => {
+        Sound.init();
+        document.removeEventListener('touchstart', unlockAudio);
+        document.removeEventListener('click', unlockAudio);
     };
-    document.addEventListener("touchstart", unlock, { once: true });
-    document.addEventListener("pointerdown", unlock, { once: true });
-}
+    document.addEventListener('touchstart', unlockAudio);
+    document.addEventListener('click', unlockAudio);
 
-/* --- BUTTON EVENTS --- */
-function setupButtons() {
-    // 🎮 Local Play
-    document.getElementById("playLocalButton")?.addEventListener("click", () => {
-        getAudioContext();
-        Multiplayer.role = "local";
-        Multiplayer.connected = false;
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    soundToggleBtn.addEventListener('click', () => {
+        Sound.enabled = !Sound.enabled;
+        soundToggleBtn.textContent = Sound.enabled ? "🔊" : "🔇";
+    });
+
+    const homeScreen = document.getElementById('homeScreen');
+    const gameScreen = document.getElementById('gameScreen');
+
+    function showGame() {
+        homeScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+    }
+
+    function showHome() {
+        gameScreen.classList.add('hidden');
+        homeScreen.classList.remove('hidden');
+    }
+
+    document.getElementById('playLocalBtn').addEventListener('click', () => {
+        Multiplayer.role = 'local';
         showGame();
+        window.Game.initGame();
     });
 
-    // ← Back to Home
-    document.getElementById("backHomeButton")?.addEventListener("click", () => {
-        showHome();
-    });
-
-    // 🪵 Throw Sticks
-    document.getElementById("throwButton")?.addEventListener("click", () => {
-        getAudioContext();
-        if (gameState.gameOver || gameState.waitingForPawn) return;
-
-        if (Multiplayer.connected && Multiplayer.localPlayer !== gameState.currentPlayer) {
-            updateMessage("Wait for your opponent's turn.");
-            return;
+    document.getElementById('backBtn').addEventListener('click', () => {
+        if (confirm("Quit game and return to menu?")) {
+            showHome();
         }
+    });
 
-        animateSticks();
-        const value = throwBaraSticks();
-
-        if (!Multiplayer.connected || Multiplayer.role === "host") {
-            processThrow(value);
-            if (Multiplayer.connected) Multiplayer.sendState();
+    document.getElementById('throwBtn').addEventListener('click', () => {
+        if (Multiplayer.role === 'guest') {
+            Multiplayer.sendAction('throw', {});
         } else {
-            Multiplayer.sendAction({ type: "throw", value });
+            window.Game.handleThrow();
         }
     });
 
-    // 🔄 New Game
-    document.getElementById("newGameButton")?.addEventListener("click", () => {
-        getAudioContext();
-        resetGameState();
-        if (typeof setStickColor === "function") setStickColor(1);
-        if (typeof resetThrowDisplay === "function") resetThrowDisplay();
-        playMoveSound();
-        if (Multiplayer.connected) Multiplayer.sendState();
-        updateMessage("New game started!");
-    });
-
-    // 🔊 Sound Toggle
-    document.getElementById("soundButton")?.addEventListener("click", () => {
-        window.soundEnabled = !window.soundEnabled;
-        const btn = document.getElementById("soundButton");
-        if (btn) btn.textContent = window.soundEnabled ? "🔊" : "🔇";
-        if (window.soundEnabled) {
-            getAudioContext();
-            playTurnSound();
+    document.getElementById('newGameBtn').addEventListener('click', () => {
+        if (confirm("Reset current game?")) {
+            window.Game.initGame();
+            if (Multiplayer.role === 'host') Multiplayer.sendState();
         }
     });
 
-    // 🌐 Multiplayer: Create Room (Host)
-    document.getElementById("createRoomButton")?.addEventListener("click", () => {
-        getAudioContext();
-        document.getElementById("homeRoomArea")?.classList.remove("hidden");
-        document.getElementById("joinInputArea")?.classList.add("hidden");
-        Multiplayer.createRoom();
-    });
-
-    // 🔗 Multiplayer: Join Room (Guest)
-    document.getElementById("joinRoomButton")?.addEventListener("click", () => {
-        document.getElementById("homeRoomArea")?.classList.remove("hidden");
-        document.getElementById("joinInputArea")?.classList.remove("hidden");
-        const status = document.getElementById("homeRoomStatus");
-        if (status) status.textContent = "Enter Player 1's code below";
-    });
-
-    // 🚀 Multiplayer: Connect
-    document.getElementById("connectButton")?.addEventListener("click", () => {
-        getAudioContext();
-        const code = document.getElementById("roomInput")?.value.trim();
-        Multiplayer.joinRoom(code);
-    });
-
-    // 📋 Copy Room Code
-    document.getElementById("copyCodeButton")?.addEventListener("click", () => {
-        const code = document.getElementById("roomCode")?.textContent;
-        if (code && code !== "----") {
-            navigator.clipboard?.writeText(code).then(() => {
-                const st = document.getElementById("homeRoomStatus");
-                if (st) st.textContent = "Code copied to clipboard!";
-            });
-        }
-    });
-
-    // 📜 Rules Modal
-    const openRules = () => document.getElementById("rulesModal")?.classList.remove("hidden");
-    const closeRules = () => document.getElementById("rulesModal")?.classList.add("hidden");
-
-    document.getElementById("rulesButton")?.addEventListener("click", openRules);
-    document.getElementById("gameRulesButton")?.addEventListener("click", openRules);
-    document.getElementById("closeRules")?.addEventListener("click", closeRules);
-    
-    document.getElementById("rulesModal")?.addEventListener("click", e => {
-        if (e.target.id === "rulesModal") closeRules();
-    });
-}
-
-/* --- PAWN CLICKS --- */
-function setupPawnInteraction() {
-    document.addEventListener("click", event => {
-        const pawn = event.target.closest(".pawn");
-        if (!pawn) return;
-
-        const player = Number(pawn.dataset.player);
-        const pawnIndex = Number(pawn.dataset.pawn);
-
-        if (!gameState.waitingForPawn || player !== gameState.currentPlayer) return;
-
-        if (Multiplayer.connected && Multiplayer.localPlayer !== gameState.currentPlayer) {
-            updateMessage("Wait for your turn.");
-            return;
-        }
-
-        if (Multiplayer.connected && Multiplayer.role === "guest") {
-            Multiplayer.sendAction({ type: "move", player, pawnIndex });
-            return;
-        }
-
-        movePawn(player, pawnIndex);
-    });
-}
+    window.showGame = showGame;
+});
