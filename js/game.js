@@ -151,7 +151,7 @@ class GameEngine {
     calculateNextPosition(player, currentPos, val) {
         const hasKill = this.gameState.hasKilled[player];
         
-        // Stuck at the end of Outer Ring (index 23) if no kill
+        // Clamps at step 23 (end of outer loop) if player hasn't killed an opponent yet
         if (!hasKill) {
             if (currentPos + val >= 23) return 23;
             return currentPos + val;
@@ -196,7 +196,7 @@ class GameEngine {
         }
 
         if (captured) {
-            this.gameState.hasKilled[player] = true; 
+            this.gameState.hasKilled[player] = true;
         }
 
         if (nextPos === 48) {
@@ -240,6 +240,26 @@ class GameEngine {
         Sound.playTurnSound();
         if (Multiplayer.role === 'host') Multiplayer.sendState();
         this.updateUI();
+    }
+
+    updateUI() {
+        UI.renderBoard(this.gameState);
+        UI.renderSticks(this.gameState.currentPlayer, this.gameState.lastThrow);
+        UI.updateScores(this.gameState);
+        
+        const turnText = document.getElementById('turnText');
+        const throwBtn = document.getElementById('throwBtn');
+        
+        if (this.gameState.gameOver) {
+            turnText.textContent = "Game Over!";
+            throwBtn.style.display = "none";
+        } else {
+            turnText.textContent = `Player ${this.gameState.currentPlayer}'s Turn`;
+            throwBtn.style.display = this.gameState.waitingForPawn ? "none" : "block";
+            
+            document.getElementById('p1-bar').classList.toggle('active', this.gameState.currentPlayer === 1);
+            document.getElementById('p2-bar').classList.toggle('active', this.gameState.currentPlayer === 2);
+        }
     }
 }
 
