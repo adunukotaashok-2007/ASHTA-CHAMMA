@@ -37,7 +37,7 @@ function resetGameState() {
         homeCount: { 1: 0, 2: 0 }
     };
     renderGame();
-    updateStatus("Player 1's Turn", "Throw the Bara sticks");
+    updateStatus("Player 1's Turn", "Throw the sticks");
     updateControlsState();
 }
 
@@ -66,7 +66,7 @@ function processThrow(value) {
             return;
         }
 
-        setTimeout(switchTurn, 1000);
+        setTimeout(switchTurn, 1200);
         return;
     }
 
@@ -145,7 +145,7 @@ function captureOpponentIfNeeded(player, position) {
 
     for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
         if (gameState.pawns[opponent][i] === position) {
-            gameState.pawns[opponent][i] = -1;
+            gameState.pawns[opponent][i] = -1; // Send back to yard
             captured = true;
         }
     }
@@ -177,6 +177,7 @@ function afterMove(player, pawnIndex) {
 
     if (extraTurn) {
         updateStatus(`${players[player].name}'s Turn`, "Extra throw awarded!");
+        if (typeof resetThrowDisplay === "function") setTimeout(resetThrowDisplay, 1500);
     } else {
         switchTurn();
     }
@@ -192,7 +193,12 @@ function switchTurn() {
     gameState.movablePawns = [];
     clearMovableHighlights();
     renderGame();
-    updateStatus(`${players[gameState.currentPlayer].name}'s Turn`, "Throw the Bara sticks");
+    
+    // Change stick visual owner
+    if (typeof setStickColor === "function") setStickColor(gameState.currentPlayer);
+    if (typeof resetThrowDisplay === "function") resetThrowDisplay();
+
+    updateStatus(`${players[gameState.currentPlayer].name}'s Turn`, "Throw the sticks");
     updateControlsState();
     playTurnSound();
 }
@@ -201,13 +207,30 @@ function highlightMovablePawns(pawnIndexes) {
     clearMovableHighlights();
     pawnIndexes.forEach(pawnIndex => {
         const pawn = document.querySelector(`.pawn[data-player="${gameState.currentPlayer}"][data-pawn="${pawnIndex}"]`);
-        highlightPawn(pawn);
+        if (pawn) pawn.classList.add("movable");
     });
 }
 
+function clearMovableHighlights() {
+    document.querySelectorAll(".pawn.movable").forEach(p => p.classList.remove("movable"));
+}
+
+/* --- RENDERING --- */
 function renderGame() {
+    // Clear all pawns
     document.querySelectorAll(".pawn").forEach(p => p.remove());
 
+    // Clear external yard slots
+    for (const player of [1, 2]) {
+        for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
+            if (typeof getYardSlot === "function") {
+                const slot = getYardSlot(player, i);
+                if (slot) slot.innerHTML = "";
+            }
+        }
+    }
+
+    // Place pawns based on position
     for (const player of [1, 2]) {
         for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
             const pos = gameState.pawns[player][i];
@@ -219,28 +242,29 @@ function renderGame() {
         }
     }
 
+    // Update Scores
     const p1 = document.getElementById("p1Count");
     const p2 = document.getElementById("p2Count");
     if (p1) p1.textContent = `${gameState.homeCount[1]}/6 Home`;
     if (p2) p2.textContent = `${gameState.homeCount[2]}/6 Home`;
 
+    // Highlight Player UI Bars
     document.getElementById("player1Card")?.classList.toggle("active", gameState.currentPlayer === 1);
     document.getElementById("player2Card")?.classList.toggle("active", gameState.currentPlayer === 2);
 }
 
 function renderBoardPawn(player, pawnIndex, position) {
-    const cell = getPathCell(position);
-    if (!cell) return;
-    cell.appendChild(createPawn(player, pawnIndex));
+    if (typeof getPathCell === "function") {
+        const cell = getPathCell(position);
+        if (cell) cell.appendChild(createPawn(player, pawnIndex));
+    }
 }
 
 function renderYardPawn(player, pawnIndex) {
-    const yard = player === 1 ? PLAYER1_YARD : PLAYER2_YARD;
-    const coord = yard[pawnIndex];
-    if (!coord) return;
-    const cell = getCell(coord[0], coord[1]);
-    if (!cell) return;
-    cell.appendChild(createPawn(player, pawnIndex));
+    if (typeof getYardSlot === "function") {
+        const slot = getYardSlot(player, pawnIndex);
+        if (slot) slot.appendChild(createPawn(player, pawnIndex));
+    }
 }
 
 function createPawn(player, pawnIndex) {
@@ -252,6 +276,7 @@ function createPawn(player, pawnIndex) {
     return pawn;
 }
 
+/* --- STATE SYNC & UI --- */
 function getSerializableState() {
     return JSON.parse(JSON.stringify(gameState));
 }
@@ -260,6 +285,8 @@ function loadRemoteState(remoteState) {
     if (!remoteState) return;
     gameState = JSON.parse(JSON.stringify(remoteState));
     renderGame();
+
+    if (typeof setStickColor === "function") setStickColor(gameState.currentPlayer);
 
     if (gameState.waitingForPawn && gameState.movablePawns?.length) {
         highlightMovablePawns(gameState.movablePawns);
@@ -273,7 +300,7 @@ function loadRemoteState(remoteState) {
     } else {
         updateStatus(
             `${players[gameState.currentPlayer].name}'s Turn`,
-            gameState.waitingForPawn ? "Select glowing pawn" : "Throw Bara sticks"
+            gameState.waitingForPawn ? "Select glowing pawn" : "Throw sticks"
         );
     }
     updateControlsState();
@@ -308,7 +335,7 @@ function updateControlsState() {
 }
 
 /* =========================================================
-   PROCEDURAL SOUND ENGINE
+   PROCEDURAL SOUND ENGINE (Web Audio API)
 ========================================================= */
 
 let audioContext = null;
@@ -464,6 +491,6 @@ function playWinSound() {
 }
 
 function initializeGame() {
-    createBoard();
+    if (typeof createBoard === "function") createBoard();
     resetGameState();
 }
