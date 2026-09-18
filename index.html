@@ -2,92 +2,134 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ashta Chamma</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="game-container">
+<!-- ===================== HOME SCREEN ===================== -->
+<div id="homeScreen" class="screen">
+    <div class="home-content">
+        <div class="home-title">
+            <div class="home-telugu">అష్ట చమ్మ</div>
+            <div class="home-english">ASHTA CHAMMA</div>
+            <div class="home-sub">Traditional 2-Player Board Game</div>
+        </div>
 
-    <header class="topbar">
-        <h1>అష్ట చమ్మ - ASHTA CHAMMA</h1>
-        <button id="soundButton" class="small-button">🔊</button>
+        <div class="home-sticks-preview">
+            <div class="preview-stick p1-stick-color"><span class="dot"></span></div>
+            <div class="preview-stick p2-stick-color"><span class="dot"></span></div>
+        </div>
+
+        <button id="playLocalButton" class="home-btn primary">🎮 PLAY LOCAL (Same Phone)</button>
+        <button id="createRoomButton" class="home-btn">🌐 CREATE ROOM (Player 1)</button>
+        <button id="joinRoomButton" class="home-btn">🔗 JOIN ROOM (Player 2)</button>
+        <button id="rulesButton" class="home-btn secondary">📜 RULES</button>
+
+        <div id="homeRoomArea" class="home-room hidden">
+            <div id="homeRoomStatus">Offline</div>
+            <div class="room-code-row">
+                <strong id="roomCode">----</strong>
+                <button id="copyCodeButton" class="copy-btn">📋</button>
+            </div>
+            <div id="joinInputArea" class="hidden">
+                <input id="roomInput" type="text" placeholder="Paste room code">
+                <button id="connectButton" class="home-btn primary">CONNECT & PLAY</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== GAME SCREEN ===================== -->
+<div id="gameScreen" class="screen hidden">
+
+    <header class="game-top">
+        <button id="backHomeButton" class="icon-btn">←</button>
+        <div class="game-title">అష్ట చమ్మ</div>
+        <button id="soundButton" class="icon-btn">🔊</button>
     </header>
 
-    <section class="players">
-        <div id="player1Card" class="player-card player1">
-            <span>🔴 PLAYER 1</span>
-            <span id="p1Count">0/6</span>
+    <!-- Player bars -->
+    <div class="player-bars">
+        <div id="player1Card" class="pbar pbar1">
+            <div class="pbar-dot red"></div>
+            <div class="pbar-info">
+                <span>PLAYER 1</span>
+                <span id="p1Count">0/6 Home</span>
+            </div>
         </div>
-        <div id="player2Card" class="player-card player2">
-            <span>🔵 PLAYER 2</span>
-            <span id="p2Count">0/6</span>
+        <div id="player2Card" class="pbar pbar2">
+            <div class="pbar-info right">
+                <span>PLAYER 2</span>
+                <span id="p2Count">0/6 Home</span>
+            </div>
+            <div class="pbar-dot blue"></div>
         </div>
-    </section>
+    </div>
 
-    <section class="status-panel">
+    <div class="status-bar">
         <div id="turnText">Player 1's Turn</div>
-        <div id="throwText">Tap THROW STICKS to begin</div>
-    </section>
+        <div id="throwText">Throw the sticks</div>
+    </div>
 
-    <!-- BOARD -->
-    <main id="board" class="board"></main>
+    <!-- YARDS + BOARD -->
+    <div class="board-wrap">
+        <!-- Player 1 yard (LEFT / TOP) -->
+        <div id="yard1" class="yard yard1">
+            <div class="yard-label">P1</div>
+            <div id="yard1Slots" class="yard-slots"></div>
+        </div>
 
-    <!-- STICKS + BIG NUMBER DISPLAY -->
+        <!-- The 7x7 path board -->
+        <main id="board" class="board"></main>
+
+        <!-- Player 2 yard (RIGHT / BOTTOM) -->
+        <div id="yard2" class="yard yard2">
+            <div class="yard-label">P2</div>
+            <div id="yard2Slots" class="yard-slots"></div>
+        </div>
+    </div>
+
+    <!-- STICKS - different colors per player -->
     <section class="sticks-area">
+        <div id="stickOwner" class="stick-owner">Player 1 Sticks</div>
+
         <div class="stick-box">
-            <div id="stick1" class="stick"></div>
-            <div id="stick2" class="stick"></div>
+            <div id="stick1" class="stick stick-p1">
+                <div class="stick-face" id="face1"></div>
+            </div>
+            <div id="stick2" class="stick stick-p1">
+                <div class="stick-face" id="face2"></div>
+            </div>
         </div>
 
         <div id="throwResult" class="throw-result">
-            <div class="throw-ready">Ready to throw!</div>
+            <div class="throw-ready">Ready</div>
         </div>
 
         <button id="throwButton" class="throw-button">🪵 THROW STICKS</button>
     </section>
 
-    <!-- ONLINE MULTIPLAYER -->
-    <section class="online-panel">
-        <h3>🌐 PLAY ON TWO PHONES</h3>
-        <div class="online-buttons">
-            <button id="createRoomButton">CREATE ROOM</button>
-            <button id="joinRoomButton">JOIN ROOM</button>
-        </div>
-        <div id="roomArea" class="room-area hidden">
-            <div id="roomStatus">Offline</div>
-            <div id="roomCodeBox" class="room-code-box">
-                <strong id="roomCode">----</strong>
-                <button id="copyCodeButton" class="copy-button">📋 Copy</button>
-            </div>
-            <div id="joinInputArea" class="hidden">
-                <input id="roomInput" type="text" placeholder="Paste room code here">
-                <button id="connectButton">CONNECT</button>
-            </div>
-        </div>
-    </section>
-
-    <section class="controls">
-        <button id="newGameButton">🔄 NEW GAME</button>
-        <button id="rulesButton">📜 RULES</button>
-    </section>
-
-    <div id="messageBox" class="message-box">Welcome to Ashta Chamma!</div>
-
+    <div class="game-bottom">
+        <button id="newGameButton" class="small-btn">🔄 New</button>
+        <div id="messageBox" class="message-box">Good luck!</div>
+        <button id="gameRulesButton" class="small-btn">📜</button>
+    </div>
 </div>
 
-<!-- Rules Modal -->
+<!-- RULES MODAL -->
 <div id="rulesModal" class="modal hidden">
     <div class="modal-content">
         <button id="closeRules" class="close-button">✕</button>
         <h2>Ashta Chamma Rules</h2>
         <ul>
-            <li>2 Players, 6 pawns each</li>
-            <li>Throws: 1=Dayam, 2=Rendu, 3=Mūdu, 4=Nālugu, 5=Ayidu, 6=Āru, 12=Bārā</li>
-            <li>1, 6, 12 = Entry & Extra Turn</li>
-            <li>Land on opponent to capture (unless ★ safe square)</li>
-            <li>First to bring all 6 pawns home wins!</li>
+            <li><b>2 Players</b> — 6 pawns each</li>
+            <li><b>Sticks</b>: Dayam(1), Rendu(2), Mūdu(3), Nālugu(4), Ayidu(5), Āru(6), Bārā(12)</li>
+            <li><b>Enter board</b> only with 1, 6 or 12</li>
+            <li><b>1, 6, 12</b> also give Extra Throw</li>
+            <li>Land on opponent → capture (except ★ safe)</li>
+            <li>First to get all 6 pawns to 🏠 Home wins</li>
         </ul>
     </div>
 </div>
@@ -98,6 +140,5 @@
 <script src="js/game.js"></script>
 <script src="js/multiplayer.js"></script>
 <script src="js/app.js"></script>
-
 </body>
 </html>
