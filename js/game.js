@@ -5,7 +5,6 @@ const UI = {
     },
     
     renderBoard(state) {
-        // Clear yards and board cells
         document.getElementById('p1-yard').innerHTML = '';
         document.getElementById('p2-yard').innerHTML = '';
         document.querySelectorAll('.cell').forEach(c => c.innerHTML = '');
@@ -21,7 +20,6 @@ const UI = {
             return p;
         };
 
-        // Render pawns
         [1, 2].forEach(player => {
             state.pawns[player].forEach((pos, index) => {
                 const pawnEl = createPawn(player, index, pos);
@@ -32,7 +30,6 @@ const UI = {
                     const cell = document.querySelector(`.cell[data-index="${boardIdx}"]`);
                     if(cell) cell.appendChild(pawnEl);
                 }
-                // pos === 48 is Home, not rendered (handled in score)
             });
         });
     },
@@ -60,20 +57,25 @@ const UI = {
     updateScores(state) {
         document.getElementById('p1-home').textContent = `${state.homeCount[1]}/6 Home`;
         document.getElementById('p2-home').textContent = `${state.homeCount[2]}/6 Home`;
+
+        [1, 2].forEach(p => {
+            const badge = document.getElementById(`p${p}-kill`);
+            if (state.hasKilled[p]) {
+                badge.textContent = "⚔️ Kill: YES";
+                badge.className = "kill-badge unlocked";
+            } else {
+                badge.textContent = "⚔️ Kill: NO";
+                badge.className = "kill-badge locked";
+            }
+        });
         
-        // Sync rotation based on role and turn (HOTSEAT ROTATION LOGIC)
         const wrapper = document.getElementById('boardAndYards');
         if (Multiplayer.role === 'guest') {
-            wrapper.classList.add('rotated'); // Permanently flip for Guest
+            wrapper.classList.add('rotated');
         } else if (Multiplayer.role === 'host') {
-            wrapper.classList.remove('rotated'); // Permanently upright for Host
+            wrapper.classList.remove('rotated');
         } else {
-            // Local Hotseat Mode: Flip board to face current player
-            if (state.currentPlayer === 2) {
-                wrapper.classList.add('rotated');
-            } else {
-                wrapper.classList.remove('rotated');
-            }
+            wrapper.classList.toggle('rotated', state.currentPlayer === 2);
         }
     }
 };
@@ -90,7 +92,7 @@ class GameEngine {
             gameOver: false,
             waitingForPawn: false,
             movablePawns: [],
-            // -1 = Yard, 0-47 = Path, 48 = Home
+            hasKilled: { 1: false, 2: false },
             pawns: {
                 1: [-1, -1, -1, -1, -1, -1],
                 2: [-1, -1, -1, -1, -1, -1]
@@ -115,7 +117,11 @@ class GameEngine {
                 setTimeout(() => this.nextTurn(), 1500);
             } else {
                 this.gameState.waitingForPawn = true;
-                UI.setStatus(`Select a pawn to move ${val} steps`);
+                if (val === 6 && this.gameState.pawns[this.gameState.currentPlayer].includes(-1)) {
+                    UI.setStatus("Throw is 6! Tap a yard pawn to bring ALL pawns out!");
+                } else {
+                    UI.setStatus(`Select a pawn to move ${val} steps`);
+                }
             }
             
             if (Multiplayer.role === 'host') Multiplayer.sendState();
@@ -131,13 +137,33 @@ class GameEngine {
 
         pawns.forEach((pos, index) => {
             if (pos === -1) {
-                if ([1, 6, 12].includes(val)) movable.push(index);
+                // ENTRY RULES:
+                // Dayam (1) -> 1 pawn enters
+                // Āru (6) -> Pawns can enter
+                // Bārā (12) -> NO pawns enter from yard!
+                if (val === 1 || val === 6) {
+                    movable.push(index);
+                }
             } else if (pos >= 0 && pos < 48) {
-                const newPos = pos + val;
-                if (newPos <= 48) movable.push(index); // 48 is exact home
+                const targetPos = this.calculateNextPosition(player, pos, val);
+                if (targetPos <= 48) movable.push(index);
             }
         });
         this.gameState.movablePawns = movable;
+    }
+
+    calculateNextPosition(player, currentPos, val) {
+        const hasKill = this.gameState.hasKilled[player];
+        
+        // Without a kill, pawns cycle on Outer Loop (0-23)
+        if (!hasKill) {
+            if (currentPos + val >= 24) {
+                return (currentPos + val) % 24;
+            }
+            return currentPos + val;
+        }
+        
+        return currentPos + val;
     }
 
     handlePawnClick(player, pawnIndex) {
@@ -146,16 +172,27 @@ class GameEngine {
 
         const val = this.gameState.lastThrow;
         const currentPos = this.gameState.pawns[player][pawnIndex];
-        let nextPos = currentPos === -1 ? 0 : currentPos + val;
 
+        // RULE: Throwing 6 releases ALL pawns currently in the yard onto the start cell!
+        if (currentPos === -1 && val === 6) {
+            this.gameState.pawns[player].forEach((pPos, i) => {
+                if (pPos === -1) {
+                    this.gameState.pawns[player][i] = 0;
+                }
+            });
+            Sound.playMoveSound();
+            this.finishMove(player, false);
+            return;
+        }
+
+        let nextPos = currentPos === -1 ? 0 : this.calculateNextPosition(player, currentPos, val);
         this.movePawn(player, pawnIndex, nextPos);
     }
 
     movePawn(player, pawnIndex, nextPos) {
-        const isSpecial = [1, 6, 12].includes(this.gameState.lastThrow);
         let captured = false;
 
-        // Capture Logic
+        // Capture Check
         if (nextPos >= 0 && nextPos < 48) {
             const boardIdx = Board.getPathIndex(player, nextPos);
             if (!Board.SAFE_SPACES.has(boardIdx)) {
@@ -169,15 +206,24 @@ class GameEngine {
             }
         }
 
-        // Apply Move
+        if (captured) {
+            this.gameState.hasKilled[player] = true; // Unlock Inner Loop
+        }
+
         if (nextPos === 48) {
-            this.gameState.pawns[player][pawnIndex] = 48; // Reached Home
+            this.gameState.pawns[player][pawnIndex] = 48;
             this.gameState.homeCount[player]++;
             Sound.playHomeSound();
         } else {
             this.gameState.pawns[player][pawnIndex] = nextPos;
             captured ? Sound.playCaptureSound() : Sound.playMoveSound();
         }
+
+        this.finishMove(player, captured);
+    }
+
+    finishMove(player, captured) {
+        const isSpecial = [1, 6, 12].includes(this.gameState.lastThrow);
 
         this.gameState.waitingForPawn = false;
         this.gameState.movablePawns = [];
@@ -188,10 +234,10 @@ class GameEngine {
             UI.setStatus(`PLAYER ${player} WINS!`, true);
         } else {
             if (isSpecial || captured) {
-                UI.setStatus("Extra Turn!", true);
+                UI.setStatus(captured ? "Kill! Extra Turn & Inner Loop Unlocked!" : "Extra Turn!", true);
             } else {
                 this.nextTurn();
-                return; // nextTurn calls updateUI
+                return;
             }
         }
         
@@ -221,8 +267,6 @@ class GameEngine {
             throwBtn.style.display = "none";
         } else {
             turnText.textContent = `Player ${this.gameState.currentPlayer}'s Turn`;
-            
-            // Only show button if not waiting for a pawn move
             throwBtn.style.display = this.gameState.waitingForPawn ? "none" : "block";
             
             document.getElementById('p1-bar').classList.toggle('active', this.gameState.currentPlayer === 1);
