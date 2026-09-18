@@ -8,7 +8,6 @@
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
-
     <!-- HOME SCREEN -->
     <div id="homeScreen" class="screen">
         <h1 class="game-title">అష్టా చమ్మా</h1>
@@ -33,8 +32,6 @@
 
     <!-- GAME SCREEN -->
     <div id="gameScreen" class="screen hidden">
-        
-        <!-- Header -->
         <div class="game-header">
             <button id="backBtn" class="icon-btn">←</button>
             <h2 class="small-title">అష్టా చమ్మా</h2>
@@ -55,24 +52,19 @@
             </div>
         </div>
 
-        <!-- Status -->
         <div class="status-bar">
             <h3 id="turnText">Player 1's Turn</h3>
             <p id="actionText">Throw the sticks</p>
         </div>
 
-        <!-- ROTATING PLAY AREA -->
         <div id="boardAndYards" class="board-and-yards">
             <div id="p2-yard" class="yard horizontal p2-yard"></div>
-            
             <div class="board-container">
                 <div id="board" class="board"></div>
             </div>
-            
             <div id="p1-yard" class="yard horizontal p1-yard"></div>
         </div>
 
-        <!-- Sticks & Controls -->
         <div class="controls-area">
             <div class="sticks-container">
                 <p id="stickOwnerLabel" class="stick-label">Player 1 Sticks</p>
@@ -88,7 +80,6 @@
             <button id="throwBtn" class="action-btn throw-btn">🪵 THROW STICKS</button>
         </div>
 
-        <!-- Bottom Bar -->
         <div class="bottom-bar">
             <button id="newGameBtn" class="text-btn">🔄 New</button>
             <span id="systemMsg">Game started!</span>
