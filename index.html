@@ -18,50 +18,51 @@
         <button id="soundButton" class="small-button">🔊 Sound ON</button>
     </header>
 
+    <!-- PLAYER CARDS -->
     <section class="players">
         <div id="player1Card" class="player-card player1">
             <div class="player-title">
-                <span>PLAYER 1</span>
+                <span>PLAYER 1 (Red)</span>
                 <span id="p1Count">0/6 Home</span>
             </div>
             <div class="pawn-preview">
                 <span class="preview-pawn p1-preview"></span>
-                <span>Red</span>
+                <span id="p1Status">Ready</span>
             </div>
         </div>
 
         <div id="player2Card" class="player-card player2">
             <div class="player-title">
-                <span>PLAYER 2</span>
+                <span>PLAYER 2 (Blue)</span>
                 <span id="p2Count">0/6 Home</span>
             </div>
             <div class="pawn-preview">
                 <span class="preview-pawn p2-preview"></span>
-                <span>Blue</span>
+                <span id="p2Status">Waiting</span>
             </div>
         </div>
     </section>
 
+    <!-- STATUS PANEL -->
     <section class="status-panel">
         <div id="turnText">Player 1's Turn</div>
         <div id="throwText">Throw the Bara sticks</div>
     </section>
 
+    <!-- 7x7 BOARD -->
     <main id="board" class="board"></main>
 
+    <!-- STICKS CONTROLS -->
     <section class="sticks-area">
         <div class="stick-box">
-            <div id="stick1" class="stick">
-                <span class="stick-dot"></span>
-            </div>
-            <div id="stick2" class="stick">
-                <span class="stick-dot"></span>
-            </div>
+            <div id="stick1" class="stick"><span class="stick-dot"></span></div>
+            <div id="stick2" class="stick"><span class="stick-dot"></span></div>
         </div>
         <div id="throwResult" class="throw-result">Ready</div>
         <button id="throwButton" class="throw-button">🪵 THROW STICKS</button>
     </section>
 
+    <!-- ONLINE MULTIPLAYER -->
     <section class="online-panel">
         <h3>🌐 PLAY ON TWO PHONES</h3>
         <div class="online-buttons">
@@ -74,42 +75,53 @@
             <div id="roomCodeBox" class="room-code-box">
                 <span>Room Code:</span>
                 <strong id="roomCode">----</strong>
+                <button id="copyCodeButton" class="copy-button">📋 Copy</button>
             </div>
-            <input id="roomInput" type="text" placeholder="Enter Player 1 room code" maxlength="30">
-            <button id="connectButton">CONNECT</button>
+            <div id="joinInputArea" class="hidden">
+                <input id="roomInput" type="text" placeholder="Paste Player 1 room code" maxlength="60">
+                <button id="connectButton">CONNECT</button>
+            </div>
         </div>
     </section>
 
+    <!-- CONTROLS -->
     <section class="controls">
         <button id="newGameButton">🔄 NEW GAME</button>
         <button id="rulesButton">📜 RULES</button>
     </section>
 
+    <!-- MESSAGE LOG -->
     <div id="messageBox" class="message-box">Welcome to Ashta Chamma!</div>
+
 </div>
 
+<!-- RULES MODAL -->
 <div id="rulesModal" class="modal hidden">
     <div class="modal-content">
         <button id="closeRules" class="close-button">✕</button>
         <h2>Ashta Chamma Rules</h2>
         <ul>
-            <li>2 players only.</li>
-            <li>Each player has 6 pawns.</li>
-            <li>Use two traditional Bara/Dayakattai sticks.</li>
-            <li>Dayam = 1</li>
-            <li>Rendu = 2</li>
-            <li>Mūdu = 3</li>
-            <li>Nālugu = 4</li>
-            <li>Ayidu = 5</li>
-            <li>Āru = 6</li>
-            <li>Bārā = 12</li>
-            <li>1, 6 and 12 allow a pawn to enter.</li>
-            <li>Landing on an opponent pawn captures it unless the square is safe.</li>
-            <li>First player to take all 6 pawns home wins.</li>
+            <li><strong>2 Players</strong>: Player 1 (Red) and Player 2 (Blue).</li>
+            <li><strong>6 Pawns</strong> per player starting in their yard.</li>
+            <li><strong>Throws</strong>:
+                <ul>
+                    <li>1 = Dayam (Entry & Extra throw)</li>
+                    <li>2 = Rendu</li>
+                    <li>3 = Mūdu</li>
+                    <li>4 = Nālugu</li>
+                    <li>5 = Ayidu</li>
+                    <li>6 = Āru (Entry & Extra throw)</li>
+                    <li>12 = Bārā (Entry & Extra throw)</li>
+                </ul>
+            </li>
+            <li><strong>Capturing</strong>: Landing on an opponent pawn on any normal cell captures it back to their yard.</li>
+            <li><strong>Safe Squares (★)</strong>: Marked cells prevent captures. Multiple pawns can rest safely together.</li>
+            <li><strong>Winning</strong>: First player to bring all 6 pawns to center Home wins!</li>
         </ul>
     </div>
 </div>
 
+<!-- SCRIPTS -->
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="js/board.js"></script>
 <script src="js/sticks.js"></script>
