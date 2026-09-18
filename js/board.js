@@ -1,22 +1,20 @@
 const Board = {
-    // 7x7 Grid mapped to 1D index (0 to 48)
-    // Safe spots per the requested design: mid-sides, inner-corners, center
+    // 9 Traditional Safe Spots
     SAFE_SPACES: new Set([3, 8, 12, 21, 24, 27, 36, 40, 45]),
     
-    // Exactly 49 steps (0 to 48) spiraling to the center (24)
+    // 49 Steps Outer -> Middle -> Inner -> Center Home
     P1_PATH: [
-        45, 46, 47, 48, 41, 34, 27, 20, 13, 6, 5, 4, 3, 2, 1, 0, 7, 14, 21, 28, 35, 42, 43, 44, // Outer Loop
-        37, 36, 29, 22, 15, 8, 9, 10, 11, 12, 19, 26, 33, 40, 39, 38, // Middle Loop
-        31, 32, 25, 18, 17, 16, 23, 30, // Inner Loop
-        24 // Center Home
+        45, 46, 47, 48, 41, 34, 27, 20, 13, 6, 5, 4, 3, 2, 1, 0, 7, 14, 21, 28, 35, 42, 43, 44, // Outer (0-23)
+        37, 36, 29, 22, 15, 8, 9, 10, 11, 12, 19, 26, 33, 40, 39, 38, // Middle (24-39)
+        31, 32, 25, 18, 17, 16, 23, 30, // Inner (40-47)
+        24 // Center Home (48)
     ],
     
-    // P2 starts opposite to P1 and travels counter-clockwise
     P2_PATH: [
-        3, 2, 1, 0, 7, 14, 21, 28, 35, 42, 43, 44, 45, 46, 47, 48, 41, 34, 27, 20, 13, 6, 5, 4, // Outer Loop
-        11, 12, 19, 26, 33, 40, 39, 38, 37, 36, 29, 22, 15, 8, 9, 10, // Middle Loop
-        17, 16, 23, 30, 31, 32, 25, 18, // Inner Loop
-        24 // Center Home
+        3, 2, 1, 0, 7, 14, 21, 28, 35, 42, 43, 44, 45, 46, 47, 48, 41, 34, 27, 20, 13, 6, 5, 4, // Outer (0-23)
+        11, 12, 19, 26, 33, 40, 39, 38, 37, 36, 29, 22, 15, 8, 9, 10, // Middle (24-39)
+        17, 16, 23, 30, 31, 32, 25, 18, // Inner (40-47)
+        24 // Center Home (48)
     ],
 
     getPathIndex(player, step) {
@@ -27,8 +25,6 @@ const Board = {
     init() {
         const boardEl = document.getElementById('board');
         boardEl.innerHTML = '';
-        
-        // Generate 7x7 grid (indices 0 to 48)
         for (let i = 0; i < 49; i++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
