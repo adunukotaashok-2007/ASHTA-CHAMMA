@@ -1,105 +1,155 @@
 /* =========================================================
-   ASHTA CHAMMA - BARA STICKS
+   ASHTA CHAMMA - APP INITIALIZATION & CONTROLS
 ========================================================= */
 
-const THROW_NAMES = {
-    1: "Dayam", 2: "Rendu", 3: "Mūdu", 4: "Nālugu",
-    5: "Ayidu", 6: "Āru", 12: "Bārā"
-};
+window.soundEnabled = true;
 
-const THROW_VALUES = [1, 2, 3, 4, 5, 6, 12];
-const THROW_WEIGHTS = { 1: 22, 2: 20, 3: 18, 4: 15, 5: 12, 6: 8, 12: 5 };
-const SPECIAL_THROWS = new Set([1, 6, 12]);
+document.addEventListener("DOMContentLoaded", () => {
+    setupButtons();
+    setupPawnInteraction();
+    setupMobileAudioUnlock();
+    showHome();
+});
 
-function throwBaraSticks() {
-    const pool = [];
-    for (const val of THROW_VALUES) {
-        const w = THROW_WEIGHTS[val] || 1;
-        for (let i = 0; i < w; i++) pool.push(val);
-    }
-    return pool[Math.floor(Math.random() * pool.length)];
+function showHome() {
+    document.getElementById("homeScreen")?.classList.remove("hidden");
+    document.getElementById("gameScreen")?.classList.add("hidden");
 }
 
-function getThrowName(value) {
-    return THROW_NAMES[value] || String(value);
+function showGame() {
+    document.getElementById("homeScreen")?.classList.add("hidden");
+    document.getElementById("gameScreen")?.classList.remove("hidden");
+
+    initializeGame();
+    if (typeof setStickColor === "function") setStickColor(1);
+    if (typeof resetThrowDisplay === "function") resetThrowDisplay();
+    updateMessage("Player 1 starts. Throw the sticks!");
 }
 
-function setStickColor(player) {
-    const s1 = document.getElementById("stick1");
-    const s2 = document.getElementById("stick2");
-    const owner = document.getElementById("stickOwner");
-
-    if (s1 && s2) {
-        s1.classList.remove("stick-p1", "stick-p2");
-        s2.classList.remove("stick-p1", "stick-p2");
-        const cls = player === 1 ? "stick-p1" : "stick-p2";
-        s1.classList.add(cls);
-        s2.classList.add(cls);
-    }
-    if (owner) {
-        owner.textContent = player === 1 ? "🔴 Player 1 Sticks" : "🔵 Player 2 Sticks";
-        owner.style.color = player === 1 ? "#ff8b8b" : "#78aaff";
-    }
+function setupMobileAudioUnlock() {
+    const unlock = () => {
+        getAudioContext();
+        document.removeEventListener("touchstart", unlock);
+        document.removeEventListener("pointerdown", unlock);
+    };
+    document.addEventListener("touchstart", unlock, { once: true });
+    document.addEventListener("pointerdown", unlock, { once: true });
 }
 
-function drawStickFace(faceEl, dots) {
-    if (!faceEl) return;
-    faceEl.innerHTML = "";
-    for (let i = 0; i < dots; i++) {
-        const pip = document.createElement("div");
-        pip.className = "pip";
-        faceEl.appendChild(pip);
-    }
+function setupButtons() {
+    document.getElementById("playLocalButton")?.addEventListener("click", () => {
+        getAudioContext();
+        Multiplayer.role = "local";
+        Multiplayer.connected = false;
+        showGame();
+    });
+
+    document.getElementById("backHomeButton")?.addEventListener("click", () => {
+        showHome();
+    });
+
+    document.getElementById("throwButton")?.addEventListener("click", () => {
+        getAudioContext();
+        if (gameState.gameOver || gameState.waitingForPawn) return;
+
+        if (Multiplayer.connected && Multiplayer.localPlayer !== gameState.currentPlayer) {
+            updateMessage("Wait for your opponent's turn.");
+            return;
+        }
+
+        animateSticks();
+        const value = throwBaraSticks();
+
+        if (!Multiplayer.connected || Multiplayer.role === "host") {
+            processThrow(value);
+            if (Multiplayer.connected) Multiplayer.sendState();
+        } else {
+            Multiplayer.sendAction({ type: "throw", value });
+        }
+    });
+
+    document.getElementById("newGameButton")?.addEventListener("click", () => {
+        getAudioContext();
+        resetGameState();
+        if (typeof setStickColor === "function") setStickColor(1);
+        if (typeof resetThrowDisplay === "function") resetThrowDisplay();
+        playMoveSound();
+        if (Multiplayer.connected) Multiplayer.sendState();
+        updateMessage("New game started!");
+    });
+
+    document.getElementById("soundButton")?.addEventListener("click", () => {
+        window.soundEnabled = !window.soundEnabled;
+        const btn = document.getElementById("soundButton");
+        if (btn) btn.textContent = window.soundEnabled ? "🔊" : "🔇";
+        if (window.soundEnabled) {
+            getAudioContext();
+            playTurnSound();
+        }
+    });
+
+    document.getElementById("createRoomButton")?.addEventListener("click", () => {
+        getAudioContext();
+        document.getElementById("homeRoomArea")?.classList.remove("hidden");
+        document.getElementById("joinInputArea")?.classList.add("hidden");
+        Multiplayer.createRoom();
+    });
+
+    document.getElementById("joinRoomButton")?.addEventListener("click", () => {
+        document.getElementById("homeRoomArea")?.classList.remove("hidden");
+        document.getElementById("joinInputArea")?.classList.remove("hidden");
+        const status = document.getElementById("homeRoomStatus");
+        if (status) status.textContent = "Enter Player 1's code below";
+    });
+
+    document.getElementById("connectButton")?.addEventListener("click", () => {
+        getAudioContext();
+        const code = document.getElementById("roomInput")?.value.trim();
+        Multiplayer.joinRoom(code);
+    });
+
+    document.getElementById("copyCodeButton")?.addEventListener("click", () => {
+        const code = document.getElementById("roomCode")?.textContent;
+        if (code && code !== "----") {
+            navigator.clipboard?.writeText(code).then(() => {
+                const st = document.getElementById("homeRoomStatus");
+                if (st) st.textContent = "Code copied to clipboard!";
+            });
+        }
+    });
+
+    const openRules = () => document.getElementById("rulesModal")?.classList.remove("hidden");
+    const closeRules = () => document.getElementById("rulesModal")?.classList.add("hidden");
+
+    document.getElementById("rulesButton")?.addEventListener("click", openRules);
+    document.getElementById("gameRulesButton")?.addEventListener("click", openRules);
+    document.getElementById("closeRules")?.addEventListener("click", closeRules);
+
+    document.getElementById("rulesModal")?.addEventListener("click", e => {
+        if (e.target.id === "rulesModal") closeRules();
+    });
 }
 
-function showStickFaces(value) {
-    let a = 0, b = 0;
-    if (value === 1)      { a = 1; b = 0; }
-    else if (value === 2) { a = 1; b = 1; }
-    else if (value === 3) { a = 2; b = 1; }
-    else if (value === 4) { a = 2; b = 2; }
-    else if (value === 5) { a = 3; b = 2; }
-    else if (value === 6) { a = 3; b = 3; }
-    else if (value === 12){ a = 3; b = 3; }
+function setupPawnInteraction() {
+    document.addEventListener("click", event => {
+        const pawn = event.target.closest(".pawn");
+        if (!pawn) return;
 
-    drawStickFace(document.getElementById("face1"), a);
-    drawStickFace(document.getElementById("face2"), b);
-}
+        const player = Number(pawn.dataset.player);
+        const pawnIndex = Number(pawn.dataset.pawn);
 
-function displayThrow(value) {
-    const result = document.getElementById("throwResult");
-    if (!result) return;
+        if (!gameState.waitingForPawn || player !== gameState.currentPlayer) return;
 
-    const name = getThrowName(value);
-    const special = SPECIAL_THROWS.has(value);
+        if (Multiplayer.connected && Multiplayer.localPlayer !== gameState.currentPlayer) {
+            updateMessage("Wait for your turn.");
+            return;
+        }
 
-    result.innerHTML = `
-        <div class="throw-number ${special ? "special" : ""}">${value}</div>
-        <div class="throw-name">${name}</div>
-        ${special ? '<div class="throw-bonus">✨ Extra Turn!</div>' : ''}
-    `;
-    result.classList.remove("pop");
-    void result.offsetWidth;
-    result.classList.add("pop");
+        if (Multiplayer.connected && Multiplayer.role === "guest") {
+            Multiplayer.sendAction({ type: "move", player, pawnIndex });
+            return;
+        }
 
-    showStickFaces(value);
-}
-
-function resetThrowDisplay() {
-    const result = document.getElementById("throwResult");
-    if (result) result.innerHTML = `<div class="throw-ready">Ready</div>`;
-    drawStickFace(document.getElementById("face1"), 0);
-    drawStickFace(document.getElementById("face2"), 0);
-}
-
-function animateSticks() {
-    const s1 = document.getElementById("stick1");
-    const s2 = document.getElementById("stick2");
-    if (!s1 || !s2) return;
-    s1.classList.remove("flip1");
-    s2.classList.remove("flip2");
-    void s1.offsetWidth;
-    void s2.offsetWidth;
-    s1.classList.add("flip1");
-    s2.classList.add("flip2");
+        movePawn(player, pawnIndex);
+    });
 }
