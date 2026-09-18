@@ -98,8 +98,8 @@ function calculateNewPosition(player, position, value) {
     const newRelative = relative + value;
 
     if (newRelative >= OUTER_PATH.length) {
-        if (newRelative === OUTER_PATH.length) return -2; // Exact home
-        return null; // Overshot home
+        if (newRelative === OUTER_PATH.length) return -2;
+        return null;
     }
     return (start + newRelative) % OUTER_PATH.length;
 }
@@ -111,7 +111,6 @@ function movePawn(player, pawnIndex) {
     const value = gameState.lastThrow;
     const current = gameState.pawns[player][pawnIndex];
 
-    // Enter from yard
     if (current === -1) {
         if (!ENTRY_THROWS.has(value)) return;
         gameState.pawns[player][pawnIndex] = START_POSITION[player];
@@ -145,7 +144,7 @@ function captureOpponentIfNeeded(player, position) {
 
     for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
         if (gameState.pawns[opponent][i] === position) {
-            gameState.pawns[opponent][i] = -1; // Send back to yard
+            gameState.pawns[opponent][i] = -1;
             captured = true;
         }
     }
@@ -193,8 +192,7 @@ function switchTurn() {
     gameState.movablePawns = [];
     clearMovableHighlights();
     renderGame();
-    
-    // Change stick visual owner
+
     if (typeof setStickColor === "function") setStickColor(gameState.currentPlayer);
     if (typeof resetThrowDisplay === "function") resetThrowDisplay();
 
@@ -211,16 +209,9 @@ function highlightMovablePawns(pawnIndexes) {
     });
 }
 
-function clearMovableHighlights() {
-    document.querySelectorAll(".pawn.movable").forEach(p => p.classList.remove("movable"));
-}
-
-/* --- RENDERING --- */
 function renderGame() {
-    // Clear all pawns
     document.querySelectorAll(".pawn").forEach(p => p.remove());
 
-    // Clear external yard slots
     for (const player of [1, 2]) {
         for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
             if (typeof getYardSlot === "function") {
@@ -230,7 +221,6 @@ function renderGame() {
         }
     }
 
-    // Place pawns based on position
     for (const player of [1, 2]) {
         for (let i = 0; i < PAWNS_PER_PLAYER; i++) {
             const pos = gameState.pawns[player][i];
@@ -242,13 +232,11 @@ function renderGame() {
         }
     }
 
-    // Update Scores
     const p1 = document.getElementById("p1Count");
     const p2 = document.getElementById("p2Count");
     if (p1) p1.textContent = `${gameState.homeCount[1]}/6 Home`;
     if (p2) p2.textContent = `${gameState.homeCount[2]}/6 Home`;
 
-    // Highlight Player UI Bars
     document.getElementById("player1Card")?.classList.toggle("active", gameState.currentPlayer === 1);
     document.getElementById("player2Card")?.classList.toggle("active", gameState.currentPlayer === 2);
 }
@@ -276,7 +264,6 @@ function createPawn(player, pawnIndex) {
     return pawn;
 }
 
-/* --- STATE SYNC & UI --- */
 function getSerializableState() {
     return JSON.parse(JSON.stringify(gameState));
 }
@@ -335,7 +322,7 @@ function updateControlsState() {
 }
 
 /* =========================================================
-   PROCEDURAL SOUND ENGINE (Web Audio API)
+   PROCEDURAL SOUND ENGINE
 ========================================================= */
 
 let audioContext = null;
