@@ -113,7 +113,7 @@ class GameEngine {
             this.calculateMovablePawns(val);
 
             if (this.gameState.movablePawns.length === 0) {
-                UI.setStatus(`No moves for ${val}! Swapping turns...`, true);
+                UI.setStatus(`No valid moves for ${val}! Swapping turns...`, true);
                 setTimeout(() => this.nextTurn(), 1500);
             } else {
                 this.gameState.waitingForPawn = true;
@@ -137,16 +137,16 @@ class GameEngine {
 
         pawns.forEach((pos, index) => {
             if (pos === -1) {
-                // ENTRY RULES:
-                // Dayam (1) -> 1 pawn enters
-                // Āru (6) -> Pawns can enter
-                // Bārā (12) -> NO pawns enter from yard!
+                // ENTRY RULES: Dayam (1) or Āru (6) release pawns. Bārā (12) does NOT.
                 if (val === 1 || val === 6) {
                     movable.push(index);
                 }
             } else if (pos >= 0 && pos < 48) {
                 const targetPos = this.calculateNextPosition(player, pos, val);
-                if (targetPos <= 48) movable.push(index);
+                // Can only move if target position is strictly greater than current position
+                if (targetPos > pos && targetPos <= 48) {
+                    movable.push(index);
+                }
             }
         });
         this.gameState.movablePawns = movable;
@@ -155,14 +155,16 @@ class GameEngine {
     calculateNextPosition(player, currentPos, val) {
         const hasKill = this.gameState.hasKilled[player];
         
-        // Without a kill, pawns cycle on Outer Loop (0-23)
+        // RULE: Without a kill, pawns CLAMP at step 23 (the 24th tile - end of outer cycle).
+        // They CANNOT move past 23 nor loop around! They STICK at 23.
         if (!hasKill) {
-            if (currentPos + val >= 24) {
-                return (currentPos + val) % 24;
+            if (currentPos + val >= 23) {
+                return 23; // Clamps at end of outer cycle!
             }
             return currentPos + val;
         }
         
+        // With a kill unlocked, pawns can proceed into step 24+
         return currentPos + val;
     }
 
@@ -173,7 +175,7 @@ class GameEngine {
         const val = this.gameState.lastThrow;
         const currentPos = this.gameState.pawns[player][pawnIndex];
 
-        // RULE: Throwing 6 releases ALL pawns currently in the yard onto the start cell!
+        // Throwing 6 releases ALL pawns currently in the yard onto start cell
         if (currentPos === -1 && val === 6) {
             this.gameState.pawns[player].forEach((pPos, i) => {
                 if (pPos === -1) {
@@ -207,7 +209,7 @@ class GameEngine {
         }
 
         if (captured) {
-            this.gameState.hasKilled[player] = true; // Unlock Inner Loop
+            this.gameState.hasKilled[player] = true; // Unlock Inner Loop for all pawns!
         }
 
         if (nextPos === 48) {
