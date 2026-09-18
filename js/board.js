@@ -1,8 +1,12 @@
 const Board = {
-    // 9 Traditional Safe Spots
+    // 9 Traditional Safe Spots (4 Mid-sides, 4 Inner Corners, 1 Center)
     SAFE_SPACES: new Set([3, 8, 12, 21, 24, 27, 36, 40, 45]),
     
-    // 49 Steps Outer -> Middle -> Inner -> Center Home
+    // 49 Path Steps mapped to grid index:
+    // Outer Loop = Steps 0 to 23 (24 squares)
+    // Middle Loop = Steps 24 to 39
+    // Inner Loop = Steps 40 to 47
+    // Center Home = Step 48
     P1_PATH: [
         45, 46, 47, 48, 41, 34, 27, 20, 13, 6, 5, 4, 3, 2, 1, 0, 7, 14, 21, 28, 35, 42, 43, 44, // Outer (0-23)
         37, 36, 29, 22, 15, 8, 9, 10, 11, 12, 19, 26, 33, 40, 39, 38, // Middle (24-39)
