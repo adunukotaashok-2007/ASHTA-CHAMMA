@@ -1,114 +1,44 @@
-/* =========================================================
-   ASHTA CHAMMA - BOARD
-   Counter-clockwise movement + traditional X safe zones
-========================================================= */
+const Board = {
+    // 7x7 Grid mapped to 1D index (0 to 48)
+    // Safe spots per the requested design: mid-sides, inner-corners, center
+    SAFE_SPACES: new Set([3, 8, 12, 21, 24, 27, 36, 40, 45]),
+    
+    // Exactly 49 steps (0 to 48) spiraling to the center (24)
+    P1_PATH: [
+        45, 46, 47, 48, 41, 34, 27, 20, 13, 6, 5, 4, 3, 2, 1, 0, 7, 14, 21, 28, 35, 42, 43, 44, // Outer Loop
+        37, 36, 29, 22, 15, 8, 9, 10, 11, 12, 19, 26, 33, 40, 39, 38, // Middle Loop
+        31, 32, 25, 18, 17, 16, 23, 30, // Inner Loop
+        24 // Center Home
+    ],
+    
+    // P2 starts opposite to P1 and travels counter-clockwise
+    P2_PATH: [
+        3, 2, 1, 0, 7, 14, 21, 28, 35, 42, 43, 44, 45, 46, 47, 48, 41, 34, 27, 20, 13, 6, 5, 4, // Outer Loop
+        11, 12, 19, 26, 33, 40, 39, 38, 37, 36, 29, 22, 15, 8, 9, 10, // Middle Loop
+        17, 16, 23, 30, 31, 32, 25, 18, // Inner Loop
+        24 // Center Home
+    ],
 
-const BOARD_SIZE = 7;
+    getPathIndex(player, step) {
+        if (step < 0 || step > 48) return -1;
+        return player === 1 ? this.P1_PATH[step] : this.P2_PATH[step];
+    },
 
-/*
-    OUTER PATH - Counter-clockwise direction
-    Starts at top-left, goes DOWN left side first.
-*/
-const OUTER_PATH = [
-    // Left column (top → bottom)
-    [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0],
-    // Bottom row (left → right)
-    [6, 1], [6, 2], [6, 3], [6, 4], [6, 5], [6, 6],
-    // Right column (bottom → top)
-    [5, 6], [4, 6], [3, 6], [2, 6], [1, 6], [0, 6],
-    // Top row (right → left)
-    [0, 5], [0, 4], [0, 3], [0, 2], [0, 1]
-];
-
-/*
-    Player start positions on the new path
-    Player 1 → top middle [0, 3] → path index 21
-    Player 2 → bottom middle [6, 3] → path index 9
-*/
-const START_POSITION = {
-    1: 21,
-    2: 9
-};
-
-/*
-    Traditional safe zones - corners + mid-sides
-*/
-const SAFE_POSITIONS = new Set([
-    0,   // top-left corner
-    3,   // left mid
-    6,   // bottom-left corner
-    9,   // bottom mid (P2 start)
-    12,  // bottom-right corner
-    15,  // right mid
-    18,  // top-right corner
-    21   // top mid (P1 start)
-]);
-
-const HOME_POSITION = { row: 3, col: 3 };
-
-function createBoard() {
-    const board = document.getElementById("board");
-    if (!board) return;
-    board.innerHTML = "";
-
-    for (let row = 0; row < BOARD_SIZE; row++) {
-        for (let col = 0; col < BOARD_SIZE; col++) {
-            const cell = document.createElement("div");
-            cell.className = "cell";
-            cell.dataset.row = row;
-            cell.dataset.col = col;
-
-            if ((row + col) % 2 === 1) cell.classList.add("dark");
-
-            if (row === HOME_POSITION.row && col === HOME_POSITION.col) {
-                cell.classList.add("home");
+    init() {
+        const boardEl = document.getElementById('board');
+        boardEl.innerHTML = '';
+        
+        // Generate 7x7 grid (indices 0 to 48)
+        for (let i = 0; i < 49; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.index = i;
+            if (this.SAFE_SPACES.has(i)) {
+                cell.classList.add('safe');
             }
-
-            const pathIndex = OUTER_PATH.findIndex(p => p[0] === row && p[1] === col);
-            if (pathIndex !== -1) {
-                cell.dataset.path = pathIndex;
-                if (SAFE_POSITIONS.has(pathIndex)) cell.classList.add("safe");
-                if (pathIndex === START_POSITION[1]) cell.classList.add("start1");
-                if (pathIndex === START_POSITION[2]) cell.classList.add("start2");
-            }
-
-            board.appendChild(cell);
+            boardEl.appendChild(cell);
         }
     }
+};
 
-    buildYardSlots(1);
-    buildYardSlots(2);
-}
-
-function buildYardSlots(player) {
-    const container = document.getElementById(player === 1 ? "yard1Slots" : "yard2Slots");
-    if (!container) return;
-    container.innerHTML = "";
-    for (let i = 0; i < 6; i++) {
-        const slot = document.createElement("div");
-        slot.className = "yard-slot";
-        slot.dataset.player = player;
-        slot.dataset.slot = i;
-        container.appendChild(slot);
-    }
-}
-
-function getPathCell(pathPosition) {
-    const index = ((pathPosition % OUTER_PATH.length) + OUTER_PATH.length) % OUTER_PATH.length;
-    const [row, col] = OUTER_PATH[index];
-    return document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-}
-
-function getYardSlot(player, pawnIndex) {
-    const container = document.getElementById(player === 1 ? "yard1Slots" : "yard2Slots");
-    if (!container) return null;
-    return container.children[pawnIndex] || null;
-}
-
-function clearMovableHighlights() {
-    document.querySelectorAll(".pawn.movable").forEach(p => p.classList.remove("movable"));
-}
-
-function highlightPawn(el) {
-    if (el) el.classList.add("movable");
-}
+Board.init();
