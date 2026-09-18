@@ -1,24 +1,28 @@
 const Board = {
-    // 9 Traditional Safe Spots (4 Mid-sides, 4 Inner Corners, 1 Center)
+    // 9 Traditional Safe Spots
     SAFE_SPACES: new Set([3, 8, 12, 21, 24, 27, 36, 40, 45]),
     
-    // 49 Path Steps mapped to grid index:
-    // Outer Loop = Steps 0 to 23 (24 squares)
-    // Middle Loop = Steps 24 to 39
-    // Inner Loop = Steps 40 to 47
-    // Center Home = Step 48
+    // Exact paths based on alternating spiral layout
     P1_PATH: [
-        45, 46, 47, 48, 41, 34, 27, 20, 13, 6, 5, 4, 3, 2, 1, 0, 7, 14, 21, 28, 35, 42, 43, 44, // Outer (0-23)
-        37, 36, 29, 22, 15, 8, 9, 10, 11, 12, 19, 26, 33, 40, 39, 38, // Middle (24-39)
-        31, 32, 25, 18, 17, 16, 23, 30, // Inner (40-47)
-        24 // Center Home (48)
+        // Outer (Counter-Clockwise) - 24 steps
+        3, 2, 1, 0, 7, 14, 21, 28, 35, 42, 43, 44, 45, 46, 47, 48, 41, 34, 27, 20, 13, 6, 5, 4,
+        // Middle (Clockwise) - 16 steps
+        12, 19, 26, 33, 40, 39, 38, 37, 36, 29, 22, 15, 8, 9, 10, 11,
+        // Inner (Clockwise) - 8 steps
+        18, 25, 32, 31, 30, 23, 16, 17,
+        // Home
+        24
     ],
     
     P2_PATH: [
-        3, 2, 1, 0, 7, 14, 21, 28, 35, 42, 43, 44, 45, 46, 47, 48, 41, 34, 27, 20, 13, 6, 5, 4, // Outer (0-23)
-        11, 12, 19, 26, 33, 40, 39, 38, 37, 36, 29, 22, 15, 8, 9, 10, // Middle (24-39)
-        17, 16, 23, 30, 31, 32, 25, 18, // Inner (40-47)
-        24 // Center Home (48)
+        // Outer (Counter-Clockwise) - 24 steps
+        45, 46, 47, 48, 41, 34, 27, 20, 13, 6, 5, 4, 3, 2, 1, 0, 7, 14, 21, 28, 35, 42, 43, 44,
+        // Middle (Clockwise) - 16 steps
+        36, 29, 22, 15, 8, 9, 10, 11, 12, 19, 26, 33, 40, 39, 38, 37,
+        // Inner (Clockwise) - 8 steps
+        30, 23, 16, 17, 18, 25, 32, 31,
+        // Home
+        24
     ],
 
     getPathIndex(player, step) {
