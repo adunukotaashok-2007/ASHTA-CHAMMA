@@ -1,152 +1,86 @@
-/* =========================================================
-   ASHTA CHAMMA - PEERJS MULTIPLAYER
-========================================================= */
-
-window.Multiplayer = {
+const Multiplayer = {
     peer: null,
     connection: null,
-    role: "local",
-    localPlayer: 1,
-    connected: false,
-    roomId: null,
+    role: 'local', // 'local', 'host', 'guest'
 
-    createRoom() {
-        this.role = "host";
-        this.localPlayer = 1;
-
-        const status = document.getElementById("homeRoomStatus");
-        if (status) status.textContent = "Creating Room...";
-
-        try {
-            this.peer = new Peer();
-        } catch (e) {
-            if (status) status.textContent = "Error: PeerJS failed.";
-            return;
-        }
-
-        this.peer.on("open", id => {
-            this.roomId = id;
-            this.showRoomCode(id);
+    initHost() {
+        this.role = 'host';
+        this.peer = new Peer();
+        const status = document.getElementById('connectionStatus');
+        
+        this.peer.on('open', (id) => {
+            document.getElementById('roomCodeContainer').classList.remove('hidden');
+            document.getElementById('roomCodeDisplay').textContent = id;
+            status.textContent = "Room created! Waiting for guest...";
+            
+            document.getElementById('copyRoomBtn').onclick = () => {
+                navigator.clipboard.writeText(id);
+                alert("Room ID copied to clipboard!");
+            };
         });
 
-        this.peer.on("connection", connection => {
-            this.connection = connection;
+        this.peer.on('connection', (conn) => {
+            this.connection = conn;
             this.setupConnection();
-        });
-
-        this.peer.on("error", error => {
-            if (status) status.textContent = `Error: ${error.type}`;
         });
     },
 
-    joinRoom(roomId) {
-        roomId = String(roomId || "").trim();
-        const status = document.getElementById("homeRoomStatus");
+    joinRoom(id) {
+        if (!id) return alert("Please enter a room ID.");
+        this.role = 'guest';
+        this.peer = new Peer();
+        const status = document.getElementById('connectionStatus');
+        status.textContent = "Connecting to room...";
 
-        if (!roomId) {
-            if (status) status.textContent = "Please enter a code!";
-            return;
-        }
-
-        this.role = "guest";
-        this.localPlayer = 2;
-        if (status) status.textContent = "Connecting to Host...";
-
-        try {
-            this.peer = new Peer();
-        } catch (e) {
-            if (status) status.textContent = "Error loading networking.";
-            return;
-        }
-
-        this.peer.on("open", () => {
-            this.connection = this.peer.connect(roomId, { reliable: true });
+        this.peer.on('open', () => {
+            this.connection = this.peer.connect(id);
             this.setupConnection();
-        });
-
-        this.peer.on("error", error => {
-            if (status) status.textContent = `Connection failed: ${error.type}`;
         });
     },
 
     setupConnection() {
-        if (!this.connection) return;
-
-        this.connection.on("open", () => {
-            this.connected = true;
-            const status = document.getElementById("homeRoomStatus");
-            if (status) status.textContent = `Connected! You are Player ${this.localPlayer}`;
-
-            if (this.role === "host") {
-                this.sendState();
-            }
-
+        this.connection.on('open', () => {
+            document.getElementById('connectionStatus').textContent = "Connected! Starting game...";
             setTimeout(() => {
-                if (typeof showGame === "function") showGame();
+                window.showGame();
+                if (this.role === 'host') {
+                    window.Game.initGame();
+                    this.sendState();
+                }
             }, 800);
         });
 
-        this.connection.on("data", message => {
-            this.receiveMessage(message);
-        });
-
-        this.connection.on("close", () => {
-            this.connected = false;
-            updateMessage("Opponent disconnected.");
-            if (typeof updateControlsState === "function") updateControlsState();
+        this.connection.on('data', (data) => {
+            if (data.type === 'state') {
+                window.Game.gameState = data.payload;
+                
+                if (this.role === 'guest' && data.payload.lastThrow !== null) {
+                    Sticks.animateSticks(data.payload.lastThrow, () => {
+                        window.Game.updateUI();
+                    });
+                } else {
+                    window.Game.updateUI();
+                }
+            } else if (data.type === 'action' && this.role === 'host') {
+                if (data.action === 'throw') {
+                    window.Game.handleThrow();
+                }
+            }
         });
     },
 
     sendState() {
-        if (!this.connection || !this.connection.open) return;
-        this.connection.send({
-            type: "state",
-            state: getSerializableState()
-        });
-    },
-
-    sendAction(action) {
-        if (!this.connection || !this.connection.open) return;
-        this.connection.send({ type: "action", action });
-    },
-
-    receiveMessage(message) {
-        if (!message) return;
-
-        if (message.type === "state") {
-            if (typeof loadRemoteState === "function") loadRemoteState(message.state);
-        } else if (message.type === "action") {
-            handleRemoteAction(message.action);
+        if (this.connection && this.connection.open) {
+            this.connection.send({ type: 'state', payload: window.Game.gameState });
         }
     },
 
-    showRoomCode(id) {
-        const area = document.getElementById("homeRoomArea");
-        const code = document.getElementById("roomCode");
-        const status = document.getElementById("homeRoomStatus");
-
-        if (area) area.classList.remove("hidden");
-        if (code) code.textContent = id;
-        if (status) status.textContent = "Waiting for Player 2 to join...";
+    sendAction(action, data) {
+        if (this.connection && this.connection.open) {
+            this.connection.send({ type: 'action', action: action, payload: data });
+        }
     }
 };
 
-function handleRemoteAction(action) {
-    if (!action) return;
-
-    if (Multiplayer.role === "host") {
-        if (action.type === "throw") {
-            if (typeof processThrow === "function") processThrow(action.value);
-            Multiplayer.sendState();
-        } else if (action.type === "move") {
-            if (typeof movePawn === "function") movePawn(action.player, action.pawnIndex);
-            Multiplayer.sendState();
-        }
-    } else if (Multiplayer.role === "guest") {
-        if (action.type === "throw") {
-            if (typeof processThrow === "function") processThrow(action.value);
-        } else if (action.type === "move") {
-            if (typeof movePawn === "function") movePawn(action.player, action.pawnIndex);
-        }
-    }
-}
+document.getElementById('hostBtn').addEventListener('click', () => Multiplayer.initHost());
+document.getElementById('joinBtn').addEventListener('click', () => Multiplayer.joinRoom(document.getElementById('joinIdInput').value));
