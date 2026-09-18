@@ -236,16 +236,25 @@ body {
     opacity: 0.4;
     z-index: 1;
 }
+
+/* Traditional X safe marker */
 .cell.safe::after {
-    content: "★";
+    content: "✕";
     position: absolute;
-    top: 1px; right: 2px;
-    font-size: clamp(8px, 2vw, 12px);
-    color: #6e451b;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: clamp(14px, 3.5vw, 22px);
+    font-weight: bold;
+    color: #5c3310;
+    opacity: 0.85;
+    pointer-events: none;
     z-index: 1;
+    line-height: 1;
 }
-.cell.start1 { box-shadow: inset 0 0 0 3px rgba(201,53,53,0.85); }
-.cell.start2 { box-shadow: inset 0 0 0 3px rgba(37,99,199,0.85); }
+
+.cell.start1 { box-shadow: inset 0 0 0 3px rgba(201,53,53,0.9); }
+.cell.start2 { box-shadow: inset 0 0 0 3px rgba(37,99,199,0.9); }
 
 /* Pawns */
 .pawn {
@@ -316,11 +325,9 @@ body {
     transition: background 0.3s;
 }
 
-/* Player 1 sticks = reddish wood */
 .stick-p1 {
     background: linear-gradient(90deg, #4a1510, #d4783c, #4a1510);
 }
-/* Player 2 sticks = bluish wood */
 .stick-p2 {
     background: linear-gradient(90deg, #10204a, #3c78d4, #10204a);
 }
@@ -456,7 +463,6 @@ body {
     border: none; background: transparent; font-size: 22px; cursor: pointer;
 }
 
-/* Mobile: stack yards above/below if very narrow */
 @media (max-width: 380px) {
     .board-wrap {
         grid-template-columns: 1fr;
