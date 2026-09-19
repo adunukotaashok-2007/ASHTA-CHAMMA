@@ -41,7 +41,6 @@ const UI = {
         const p1Box = document.getElementById('p1-stick-box');
         const p2Box = document.getElementById('p2-stick-box');
         
-        // HIDE opponent's sticks, SHOW active player's sticks
         if (player === 1) {
             p1Box.classList.add('active');
             p2Box.classList.remove('active');
@@ -73,7 +72,6 @@ const UI = {
             }
         });
         
-        // BOARD ROTATION based on turn
         const wrapper = document.getElementById('boardAndYards');
         if (Multiplayer.role === 'guest') {
             wrapper.classList.add('rotated');
