@@ -3,147 +3,277 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ashta Chamma</title>
+    <title>Classic Indian Board Games - Ashta Chamma & Business</title>
     <link rel="stylesheet" href="style.css">
+    <!-- PeerJS for WebRTC Online Multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
+    <div id="app-container">
 
-    <!-- HOME SCREEN -->
-    <div id="homeScreen" class="screen">
-        <h1 class="game-title">అష్టా చమ్మా</h1>
-        <div class="menu-container">
-            <button id="playLocalBtn" class="menu-btn primary">📱 PLAY LOCAL (HOTSEAT)</button>
-            <div class="online-section">
-                <button id="hostBtn" class="menu-btn host-btn">🌐 CREATE ONLINE ROOM</button>
-                <div class="join-box">
-                    <input type="text" id="joinIdInput" placeholder="Enter Room ID" autocomplete="off">
-                    <button id="joinBtn" class="menu-btn join-btn">JOIN</button>
+        <!-- GAME SELECTION SCREEN -->
+        <section id="game-select-screen" class="screen active">
+            <div class="logo-box">
+                <h1>🎲 CLASSIC BOARD GAMES</h1>
+                <p>Traditional Ashta Chamma & Business Empire</p>
+            </div>
+            
+            <div class="game-cards-container">
+                <div class="game-card" id="card-ashta">
+                    <div class="card-icon">🐚</div>
+                    <h2>Ashta Chamma (Barakatta)</h2>
+                    <p>Traditional 7×7 Shell Stick Game. Capture opponent pawns, navigate inner spirals, and reach the center home!</p>
+                    <button class="btn btn-primary" id="select-ashta-btn">Play Ashta Chamma</button>
+                </div>
+                
+                <div class="game-card" id="card-business">
+                    <div class="card-icon">💼</div>
+                    <h2>Business Board Game</h2>
+                    <p>Classic Property Empire Game! Buy cities, build houses, collect rent, avoid tax & jail, and bankrupt rivals.</p>
+                    <button class="btn btn-secondary" id="select-business-btn">Play Business</button>
                 </div>
             </div>
-            <p id="connectionStatus"></p>
-            <div id="roomCodeContainer" class="hidden">
-                <p>Your Room ID:</p>
-                <h3 id="roomCodeDisplay"></h3>
-                <button id="copyRoomBtn" class="small-btn">📋 Copy</button>
-                <p class="waiting-text">Waiting for opponent...</p>
+        </section>
+
+        <!-- ASHTA CHAMMA SETUP SCREEN -->
+        <section id="ashta-setup-screen" class="screen">
+            <button class="btn btn-back back-to-menu-btn">← Main Menu</button>
+            <div class="logo-box">
+                <h1>🐚 ASHTA CHAMMA</h1>
+                <p>Setup Game Mode</p>
             </div>
-        </div>
+
+            <div class="setup-card">
+                <div class="mode-selector">
+                    <button class="mode-btn active" id="ashta-mode-local">Local Hotseat</button>
+                    <button class="mode-btn" id="ashta-mode-online">Online Multiplayer</button>
+                </div>
+
+                <div id="ashta-local-form" class="form-group">
+                    <div class="input-field">
+                        <label for="ashta-p1-name">Player 1 Name (Red):</label>
+                        <input type="text" id="ashta-p1-name" value="Player 1">
+                    </div>
+                    <div class="input-field">
+                        <label for="ashta-p2-name">Player 2 Name (Yellow):</label>
+                        <input type="text" id="ashta-p2-name" value="Player 2">
+                    </div>
+                    <button class="btn btn-action" id="start-ashta-local-btn">Start Hotseat Game</button>
+                </div>
+
+                <div id="ashta-online-form" class="form-group hidden">
+                    <div class="online-tabs">
+                        <button class="tab-btn active" id="ashta-tab-create">Host Room</button>
+                        <button class="tab-btn" id="ashta-tab-join">Join Room</button>
+                    </div>
+
+                    <div id="ashta-host-panel" class="tab-content">
+                        <p>Create a room and share code with your opponent:</p>
+                        <button class="btn btn-secondary" id="ashta-create-room-btn">Create Room Code</button>
+                        <div id="ashta-room-display" class="room-code-display hidden">
+                            <span>Room ID: </span><strong id="ashta-room-id-text">---</strong>
+                            <button id="ashta-copy-code-btn" class="btn-sm">Copy</button>
+                        </div>
+                        <p id="ashta-host-status" class="status-text">Waiting to host...</p>
+                    </div>
+
+                    <div id="ashta-join-panel" class="tab-content hidden">
+                        <div class="input-field">
+                            <label for="ashta-join-code-input">Enter Host Room ID:</label>
+                            <input type="text" id="ashta-join-code-input" placeholder="e.g. ac-1234">
+                        </div>
+                        <button class="btn btn-action" id="ashta-join-room-btn">Connect & Join</button>
+                        <p id="ashta-join-status" class="status-text"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BUSINESS SETUP SCREEN -->
+        <section id="business-setup-screen" class="screen">
+            <button class="btn btn-back back-to-menu-btn">← Main Menu</button>
+            <div class="logo-box">
+                <h1>💼 BUSINESS GAME</h1>
+                <p>Setup Game Mode</p>
+            </div>
+
+            <div class="setup-card">
+                <div class="mode-selector">
+                    <button class="mode-btn active" id="biz-mode-local">Local Hotseat</button>
+                    <button class="mode-btn" id="biz-mode-online">Online Multiplayer</button>
+                </div>
+
+                <div id="biz-local-form" class="form-group">
+                    <div class="input-field">
+                        <label for="biz-player-count">Number of Players:</label>
+                        <select id="biz-player-count">
+                            <option value="2" selected>2 Players</option>
+                            <option value="3">3 Players</option>
+                            <option value="4">4 Players</option>
+                        </select>
+                    </div>
+                    <div class="input-field">
+                        <label for="biz-p1-name">Player 1 (Red):</label>
+                        <input type="text" id="biz-p1-name" value="Player 1">
+                    </div>
+                    <div class="input-field">
+                        <label for="biz-p2-name">Player 2 (Blue):</label>
+                        <input type="text" id="biz-p2-name" value="Player 2">
+                    </div>
+                    <div class="input-field biz-p3-field hidden">
+                        <label for="biz-p3-name">Player 3 (Green):</label>
+                        <input type="text" id="biz-p3-name" value="Player 3">
+                    </div>
+                    <div class="input-field biz-p4-field hidden">
+                        <label for="biz-p4-name">Player 4 (Yellow):</label>
+                        <input type="text" id="biz-p4-name" value="Player 4">
+                    </div>
+                    <button class="btn btn-action" id="start-biz-local-btn">Start Business Game</button>
+                </div>
+
+                <div id="biz-online-form" class="form-group hidden">
+                    <div class="online-tabs">
+                        <button class="tab-btn active" id="biz-tab-create">Host Room</button>
+                        <button class="tab-btn" id="biz-tab-join">Join Room</button>
+                    </div>
+
+                    <div id="biz-host-panel" class="tab-content">
+                        <p>Create a room and share code with Player 2:</p>
+                        <button class="btn btn-secondary" id="biz-create-room-btn">Create Room Code</button>
+                        <div id="biz-room-display" class="room-code-display hidden">
+                            <span>Room ID: </span><strong id="biz-room-id-text">---</strong>
+                            <button id="biz-copy-code-btn" class="btn-sm">Copy</button>
+                        </div>
+                        <p id="biz-host-status" class="status-text">Waiting to host...</p>
+                    </div>
+
+                    <div id="biz-join-panel" class="tab-content hidden">
+                        <div class="input-field">
+                            <label for="biz-join-code-input">Enter Host Room ID:</label>
+                            <input type="text" id="biz-join-code-input" placeholder="e.g. biz-1234">
+                        </div>
+                        <button class="btn btn-action" id="biz-join-room-btn">Connect & Join</button>
+                        <p id="biz-join-status" class="status-text"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ASHTA CHAMMA GAME SCREEN -->
+        <section id="game-screen" class="screen">
+            <header class="game-header">
+                <button class="btn-icon back-to-menu-btn" title="Back to Menu">🏠 Menu</button>
+                <div class="turn-indicator">
+                    <span id="ashta-turn-text">Player 1's Turn</span>
+                    <span id="ashta-kill-badge" class="badge">No Kill Yet</span>
+                </div>
+                <button id="ashta-audio-toggle" class="btn-icon" title="Toggle Sound">🔊</button>
+            </header>
+
+            <div class="game-viewport">
+                <!-- TOP YARD (P1) -->
+                <div id="p1-yard-container" class="yard-container p1-theme">
+                    <span class="yard-label" id="p1-yard-name">Player 1 Yard</span>
+                    <div id="p1-yard" class="pawn-yard"></div>
+                </div>
+
+                <!-- 7x7 ASHTA BOARD -->
+                <div id="board-wrapper">
+                    <div id="ashta-board" class="board-7x7"></div>
+                </div>
+
+                <!-- BOTTOM YARD (P2) -->
+                <div id="p2-yard-container" class="yard-container p2-theme">
+                    <span class="yard-label" id="p2-yard-name">Player 2 Yard</span>
+                    <div id="p2-yard" class="pawn-yard"></div>
+                </div>
+            </div>
+
+            <!-- CONTROLS PANEL -->
+            <footer class="controls-panel">
+                <div class="sticks-column">
+                    <div id="p1-sticks-box" class="sticks-box p1-theme">
+                        <span class="stick-player-label">P1 Sticks</span>
+                        <div class="sticks-row">
+                            <div class="stick" id="p1-stick-0"><div class="dots-area"></div></div>
+                            <div class="stick" id="p1-stick-1"><div class="dots-area"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="center-controls-column">
+                    <div id="throw-result-display" class="throw-badge">Throw: -</div>
+                    <button id="roll-sticks-btn" class="btn btn-roll">THROW STICKS</button>
+                </div>
+
+                <div class="sticks-column">
+                    <div id="p2-sticks-box" class="sticks-box p2-theme hidden-stick-box">
+                        <span class="stick-player-label">P2 Sticks</span>
+                        <div class="sticks-row">
+                            <div class="stick" id="p2-stick-0"><div class="dots-area"></div></div>
+                            <div class="stick" id="p2-stick-1"><div class="dots-area"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </section>
+
+        <!-- BUSINESS GAME SCREEN -->
+        <section id="business-screen" class="screen">
+            <header class="game-header">
+                <button class="btn-icon back-to-menu-btn" title="Back to Menu">🏠 Menu</button>
+                <div class="turn-indicator">
+                    <span id="biz-turn-text">Player 1's Turn</span>
+                </div>
+                <button id="biz-audio-toggle" class="btn-icon" title="Toggle Sound">🔊</button>
+            </header>
+
+            <div class="business-board-wrapper">
+                <div id="business-board" class="business-grid">
+                    <!-- 36 Perimeter Cells generated dynamically via js/business.js -->
+
+                    <!-- CENTER CONTROL HUB (Grid area 2/2 to 10/10) -->
+                    <div class="biz-center-hub">
+                        <div class="biz-players-bar" id="biz-players-summary">
+                            <!-- Populated with player status cards -->
+                        </div>
+
+                        <div class="biz-action-center">
+                            <div class="dice-display-area">
+                                <div class="die" id="biz-die-1">1</div>
+                                <div class="die" id="biz-die-2">1</div>
+                            </div>
+                            
+                            <div id="biz-prompt-box" class="prompt-box">
+                                <p id="biz-prompt-msg">Roll dice to start your turn!</p>
+                            </div>
+
+                            <div id="biz-action-buttons" class="biz-btn-group">
+                                <button id="biz-roll-btn" class="btn btn-roll">🎲 ROLL DICE</button>
+                                <button id="biz-buy-btn" class="btn btn-success hidden">💳 BUY PROPERTY</button>
+                                <button id="biz-pass-btn" class="btn btn-secondary hidden">⏭️ PASS</button>
+                                <button id="biz-jail-pay-btn" class="btn btn-warning hidden">🔑 PAY ₹500 BAIL</button>
+                                <button id="biz-end-turn-btn" class="btn btn-action hidden">DONE (END TURN)</button>
+                            </div>
+                        </div>
+
+                        <div class="biz-log-container">
+                            <div class="log-header">Game Log</div>
+                            <div id="biz-log" class="log-messages"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </div>
 
-    <!-- GAME SCREEN -->
-    <div id="gameScreen" class="screen hidden">
-        <div class="game-header">
-            <button id="backBtn" class="icon-btn">←</button>
-            <h2 class="small-title">Ashta Chamma</h2>
-            <button id="soundToggleBtn" class="icon-btn">🔊</button>
-        </div>
-
-        <div class="score-bars">
-            <div id="p1-bar" class="player-bar p1">
-                <span class="dot"></span> PLAYER 1
-                <br><span id="p1-home">0/6 Home</span>
-                <br><span id="p1-kill" class="kill-badge locked">⚔️ Kill: NO</span>
-            </div>
-            <div id="p2-bar" class="player-bar p2">
-                PLAYER 2 <span class="dot"></span>
-                <br><span id="p2-home">0/6 Home</span>
-                <br><span id="p2-kill" class="kill-badge locked">⚔️ Kill: NO</span>
-            </div>
-        </div>
-
-        <div class="status-bar">
-            <h3 id="turnText">Player 1's Turn</h3>
-            <p id="actionText">Throw the sticks</p>
-        </div>
-
-        <!-- ROTATING PLAY AREA -->
-        <div id="boardAndYards" class="board-and-yards">
-            <div id="p2-yard" class="yard horizontal p2-yard"></div>
-            <div class="board-container">
-                <div id="board" class="board"></div>
-            </div>
-            <div id="p1-yard" class="yard horizontal p1-yard"></div>
-        </div>
-
-        <!-- Controls Row -->
-        <div class="controls-row">
-            <div id="p1-stick-box" class="stick-box p1-box active">
-                <p class="stick-label">PLAYER 1 STICKS</p>
-                <div class="sticks-wrapper" id="sticksWrapper1">
-                    <div class="stick p1-stick" data-stick="1"><div class="stick-pips"></div></div>
-                    <div class="stick p1-stick" data-stick="2"><div class="stick-pips"></div></div>
-                </div>
-            </div>
-
-            <div class="center-controls">
-                <button id="throwBtn" class="action-btn throw-btn">🪵 THROW STICKS</button>
-                <div class="throw-result-display">
-                    <span id="resultValue">?</span>
-                    <span id="resultName">Ready</span>
-                </div>
-            </div>
-
-            <div id="p2-stick-box" class="stick-box p2-box">
-                <p class="stick-label">PLAYER 2 STICKS</p>
-                <div class="sticks-wrapper" id="sticksWrapper2">
-                    <div class="stick p2-stick" data-stick="1"><div class="stick-pips"></div></div>
-                    <div class="stick p2-stick" data-stick="2"><div class="stick-pips"></div></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="bottom-bar">
-            <button id="newGameBtn" class="text-btn">🔄 New Game</button>
-            <span id="systemMsg">Game started!</span>
-        </div>
-    </div>
-
-    <!-- AUDIO SCRIPT -->
-    <script>
-        const Sound = {
-            ctx: null,
-            init() {
-                if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                if (this.ctx.state === 'suspended') {
-                    this.ctx.resume();
-                }
-            },
-            enabled: true,
-            playNoise(dur, freq, type='square') {
-                if(!this.enabled || !this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(freq/2, this.ctx.currentTime + dur);
-                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + dur);
-            },
-            playWoodClick() { this.playNoise(0.1, 800, 'square'); },
-            playThrowSound() { 
-                if(!this.enabled) return;
-                setTimeout(() => this.playWoodClick(), 0);
-                setTimeout(() => this.playWoodClick(), 150);
-                setTimeout(() => this.playWoodClick(), 300);
-            },
-            playMoveSound() { this.playNoise(0.1, 400, 'sine'); },
-            playCaptureSound() { this.playNoise(0.3, 150, 'sawtooth'); },
-            playHomeSound() { this.playNoise(0.5, 600, 'sine'); setTimeout(()=>this.playNoise(0.5, 800, 'sine'), 200); },
-            playTurnSound() { this.playNoise(0.2, 500, 'triangle'); },
-            playWinSound() { this.playNoise(1.5, 800, 'sine'); }
-        };
-    </script>
-    <script src="js/multiplayer.js"></script>
+    <!-- SCRIPTS -->
     <script src="js/sticks.js"></script>
     <script src="js/board.js"></script>
     <script src="js/game.js"></script>
+    <script src="js/business.js"></script>
+    <script src="js/multiplayer.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
