@@ -22,8 +22,6 @@ const Sticks = {
 
     animateSticks(value, callback) {
         const currentPlayer = window.Game.gameState.currentPlayer;
-        
-        // ONLY ANIMATE THE ACTIVE PLAYER'S STICKS!
         const sticks = document.querySelectorAll(`#sticksWrapper${currentPlayer} .stick`);
         
         const resultVal = document.getElementById('resultValue');
