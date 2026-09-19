@@ -35,7 +35,7 @@
     <div id="gameScreen" class="screen hidden">
         <div class="game-header">
             <button id="backBtn" class="icon-btn">←</button>
-            <h2 class="small-title">అష్టా చమ్మా</h2>
+            <h2 class="small-title">Ashta Chamma</h2>
             <button id="soundToggleBtn" class="icon-btn">🔊</button>
         </div>
 
@@ -58,31 +58,45 @@
             <p id="actionText">Throw the sticks</p>
         </div>
 
-        <!-- PLAY AREA: P1 Yard (Top) -> Board -> P2 Yard (Bottom) -->
+        <!-- ROTATING PLAY AREA -->
         <div id="boardAndYards" class="board-and-yards">
-            <div id="p1-yard" class="yard horizontal p1-yard"></div>
-            
+            <div id="p2-yard" class="yard horizontal p2-yard"></div>
             <div class="board-container">
                 <div id="board" class="board"></div>
             </div>
-            
-            <div id="p2-yard" class="yard horizontal p2-yard"></div>
+            <div id="p1-yard" class="yard horizontal p1-yard"></div>
         </div>
 
-        <!-- Controls -->
-        <div class="controls-area">
-            <div class="sticks-container">
-                <p id="stickOwnerLabel" class="stick-label">Player 1 Sticks</p>
-                <div class="sticks-wrapper" id="sticksWrapper">
-                    <div class="stick" data-stick="1"><div class="stick-pips"></div></div>
-                    <div class="stick" data-stick="2"><div class="stick-pips"></div></div>
+        <!-- Sticks & Controls (Left / Center / Right) -->
+        <div class="controls-row">
+            
+            <!-- P1 Sticks (Left) -->
+            <div id="p1-stick-box" class="stick-box p1-box active">
+                <p class="stick-label">PLAYER 1 STICKS</p>
+                <div class="sticks-wrapper" id="sticksWrapper1">
+                    <div class="stick p1-stick" data-stick="1"><div class="stick-pips"></div></div>
+                    <div class="stick p1-stick" data-stick="2"><div class="stick-pips"></div></div>
                 </div>
+            </div>
+
+            <!-- Center Throw Button -->
+            <div class="center-controls">
+                <button id="throwBtn" class="action-btn throw-btn">🪵 THROW STICKS</button>
                 <div class="throw-result-display">
                     <span id="resultValue">?</span>
                     <span id="resultName">Ready</span>
                 </div>
             </div>
-            <button id="throwBtn" class="action-btn throw-btn">🪵 THROW STICKS</button>
+
+            <!-- P2 Sticks (Right) -->
+            <div id="p2-stick-box" class="stick-box p2-box">
+                <p class="stick-label">PLAYER 2 STICKS</p>
+                <div class="sticks-wrapper" id="sticksWrapper2">
+                    <div class="stick p2-stick" data-stick="1"><div class="stick-pips"></div></div>
+                    <div class="stick p2-stick" data-stick="2"><div class="stick-pips"></div></div>
+                </div>
+            </div>
+
         </div>
 
         <div class="bottom-bar">
