@@ -5,8 +5,10 @@ const UI = {
     },
     
     renderBoard(state) {
-        document.getElementById('p1-yard').innerHTML = '';
-        document.getElementById('p2-yard').innerHTML = '';
+        const p1Yard = document.getElementById('p1-yard');
+        const p2Yard = document.getElementById('p2-yard');
+        p1Yard.innerHTML = '';
+        p2Yard.innerHTML = '';
         document.querySelectorAll('.cell').forEach(c => c.innerHTML = '');
 
         const createPawn = (player, index, pos) => {
@@ -24,7 +26,8 @@ const UI = {
             state.pawns[player].forEach((pos, index) => {
                 const pawnEl = createPawn(player, index, pos);
                 if (pos === -1) {
-                    document.getElementById(`p${player}-yard`).appendChild(pawnEl);
+                    const yard = player === 1 ? p1Yard : p2Yard;
+                    yard.appendChild(pawnEl);
                 } else if (pos >= 0 && pos < 48) {
                     const boardIdx = Board.getPathIndex(player, pos);
                     const cell = document.querySelector(`.cell[data-index="${boardIdx}"]`);
@@ -68,15 +71,6 @@ const UI = {
                 badge.className = "kill-badge locked";
             }
         });
-        
-        const wrapper = document.getElementById('boardAndYards');
-        if (Multiplayer.role === 'guest') {
-            wrapper.classList.add('rotated');
-        } else if (Multiplayer.role === 'host') {
-            wrapper.classList.remove('rotated');
-        } else {
-            wrapper.classList.toggle('rotated', state.currentPlayer === 2);
-        }
     }
 };
 
