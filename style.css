@@ -59,8 +59,14 @@ body { background-color: var(--bg-color); color: var(--text-color); touch-action
 .yard.p2-yard { border-color: var(--p2-color); }
 
 .board-container { background: var(--board-bg); padding: 5px; border-radius: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.6); }
-.board { display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(7, 1fr); gap: 2px; width: 88vw; max-width: 320px; aspect-ratio: 1; }
-.cell { background: var(--cell-light); position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 1px; padding: 1px; border-radius: 2px; }
+.board { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; gap: 2px; width: 88vw; max-width: 320px; aspect-ratio: 1; }
+
+.cell {
+    background: var(--cell-light);
+    position: relative;
+    display: flex; justify-content: center; align-items: center;
+    border-radius: 2px;
+}
 .cell:nth-child(even) { background: var(--cell-dark); }
 .cell[data-index="24"] { background: var(--safe-color); }
 
@@ -69,22 +75,55 @@ body { background-color: var(--bg-color); color: var(--text-color); touch-action
     color: #4a2912; opacity: 0.6; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none;
 }
 
-/* Pawns */
+/* PAWNS IN YARD */
 .pawn {
+    position: relative;
     width: clamp(22px, 6vw, 28px); height: clamp(22px, 6vw, 28px);
     min-width: 22px; min-height: 22px; border-radius: 50%;
     display: flex; justify-content: center; align-items: center;
     font-size: clamp(11px, 3vw, 14px); font-weight: bold; color: white; border: 2px solid white;
     cursor: pointer; transition: 0.2s; box-shadow: 0 3px 5px rgba(0,0,0,0.5); z-index: 2; flex-shrink: 0;
 }
-.board-and-yards.rotated .pawn { transform: rotate(180deg); }
-
 .pawn.p1 { background: radial-gradient(circle at 30% 30%, #ff4d4d, var(--p1-color)); }
 .pawn.p2 { background: radial-gradient(circle at 30% 30%, #4d94ff, var(--p2-color)); }
-.pawn.highlight { animation: pulse 1s infinite; border-color: #ffd700; transform: scale(1.15); box-shadow: 0 0 12px #ffd700; z-index: 3; }
-.board-and-yards.rotated .pawn.highlight { transform: rotate(180deg) scale(1.15); }
 
-@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,215,0,0.8); } 70% { box-shadow: 0 0 0 10px rgba(255,215,0,0); } 100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); } }
+/* PAWNS ON BOARD (Absolute positioned so they NEVER break grid layout) */
+.cell .pawn {
+    position: absolute;
+    width: 50%; height: 50%;
+    min-width: 0; min-height: 0;
+    font-size: clamp(9px, 2.2vw, 12px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.cell .pawn:nth-child(1) { top: 5%; left: 5%; z-index: 1; }
+.cell .pawn:nth-child(2) { bottom: 5%; right: 5%; z-index: 2; }
+.cell .pawn:nth-child(3) { top: 5%; right: 5%; z-index: 3; }
+.cell .pawn:nth-child(4) { bottom: 5%; left: 5%; z-index: 4; }
+.cell .pawn:nth-child(5) { top: 25%; left: 25%; z-index: 5; }
+.cell .pawn:nth-child(6) { bottom: 25%; right: 25%; z-index: 6; border-color: #ffd700; }
+
+.cell .pawn:only-child {
+    top: 12.5%; left: 12.5%;
+    width: 75%; height: 75%;
+    font-size: clamp(11px, 3vw, 14px);
+}
+
+/* Animations */
+@keyframes pulseCellPawn {
+    0% { box-shadow: 0 0 0 0 rgba(255,215,0,0.8); transform: scale(1.15); }
+    70% { box-shadow: 0 0 0 10px rgba(255,215,0,0); transform: scale(1.15); }
+    100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); transform: scale(1.15); }
+}
+@keyframes pulseRotatedPawn {
+    0% { box-shadow: 0 0 0 0 rgba(255,215,0,0.8); transform: rotate(180deg) scale(1.15); }
+    70% { box-shadow: 0 0 0 10px rgba(255,215,0,0); transform: rotate(180deg) scale(1.15); }
+    100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); transform: rotate(180deg) scale(1.15); }
+}
+
+.pawn.highlight { animation: pulseCellPawn 1s infinite; z-index: 10; border-color: #ffd700; }
+.board-and-yards.rotated .pawn { transform: rotate(180deg); }
+.board-and-yards.rotated .pawn.highlight { animation: pulseRotatedPawn 1s infinite; z-index: 10; border-color: #ffd700; }
+
 
 /* Controls (3 Column Layout) */
 .controls-row { margin-top: 15px; display: flex; justify-content: space-between; align-items: flex-end; width: 100%; max-width: 480px; gap: 10px; }
@@ -107,9 +146,7 @@ body { background-color: var(--bg-color); color: var(--text-color); touch-action
     border: 1px solid rgba(255,255,255,0.2);
 }
 .p1-stick { background: linear-gradient(to right, #d68f60, #f5c4a3, #d68f60); }
-.p2-stick { background: linear-gradient(to right, #d68f60, #f5c4a3, #d68f60); }
-/* Add blue stripes for P2 visually if you want, but color rotation works too */
-.p2-stick { filter: hue-rotate(195deg); }
+.p2-stick { background: linear-gradient(to right, #d68f60, #f5c4a3, #d68f60); filter: hue-rotate(195deg); }
 
 .stick.rolling { animation: rollAnim 0.6s ease-in-out; }
 @keyframes rollAnim { 0% { transform: translateY(0) rotate(0deg); } 25% { transform: translateY(-15px) rotate(45deg); } 50% { transform: translateY(0) rotate(90deg); } 75% { transform: translateY(-8px) rotate(135deg); } 100% { transform: translateY(0) rotate(180deg); } }
