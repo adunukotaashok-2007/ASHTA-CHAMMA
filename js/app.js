@@ -1,58 +1,86 @@
+/* APPLICATION ROUTER & UI EVENT LISTENERS */
+
 document.addEventListener('DOMContentLoaded', () => {
-    
-    const unlockAudio = () => {
-        Sound.init();
-        document.removeEventListener('touchstart', unlockAudio);
-        document.removeEventListener('click', unlockAudio);
+    // SCREEN NAVIGATION
+    const screens = {
+        select: document.getElementById('game-select-screen'),
+        ashtaSetup: document.getElementById('ashta-setup-screen'),
+        bizSetup: document.getElementById('business-setup-screen'),
+        ashtaGame: document.getElementById('game-screen'),
+        bizGame: document.getElementById('business-screen')
     };
-    document.addEventListener('touchstart', unlockAudio);
-    document.addEventListener('click', unlockAudio);
 
-    const soundToggleBtn = document.getElementById('soundToggleBtn');
-    soundToggleBtn.addEventListener('click', () => {
-        Sound.enabled = !Sound.enabled;
-        soundToggleBtn.textContent = Sound.enabled ? "🔊" : "🔇";
-    });
-
-    const homeScreen = document.getElementById('homeScreen');
-    const gameScreen = document.getElementById('gameScreen');
-
-    function showGame() {
-        homeScreen.classList.add('hidden');
-        gameScreen.classList.remove('hidden');
+    function showScreen(targetScreen) {
+        Object.values(screens).forEach(s => s.classList.remove('active'));
+        targetScreen.classList.add('active');
     }
 
-    function showHome() {
-        gameScreen.classList.add('hidden');
-        homeScreen.classList.remove('hidden');
-    }
+    // MAIN MENU BUTTONS
+    document.getElementById('select-ashta-btn').onclick = () => showScreen(screens.ashtaSetup);
+    document.getElementById('select-business-btn').onclick = () => showScreen(screens.bizSetup);
 
-    document.getElementById('playLocalBtn').addEventListener('click', () => {
-        Multiplayer.role = 'local';
-        showGame();
-        window.Game.initGame();
+    document.querySelectorAll('.back-to-menu-btn').forEach(btn => {
+        btn.onclick = () => showScreen(screens.select);
     });
 
-    document.getElementById('backBtn').addEventListener('click', () => {
-        if (confirm("Quit game and return to menu?")) {
-            showHome();
-        }
-    });
+    // ASHTA SETUP LOGIC
+    window.isHotseat = true;
+    document.getElementById('ashta-mode-local').onclick = () => {
+        window.isHotseat = true;
+        document.getElementById('ashta-mode-local').classList.add('active');
+        document.getElementById('ashta-mode-online').classList.remove('active');
+        document.getElementById('ashta-local-form').classList.remove('hidden');
+        document.getElementById('ashta-online-form').classList.add('hidden');
+    };
 
-    document.getElementById('throwBtn').addEventListener('click', () => {
-        if (Multiplayer.role === 'guest') {
-            Multiplayer.sendAction('throw', {});
-        } else {
-            window.Game.handleThrow();
-        }
-    });
+    document.getElementById('ashta-mode-online').onclick = () => {
+        window.isHotseat = false;
+        document.getElementById('ashta-mode-online').classList.add('active');
+        document.getElementById('ashta-mode-local').classList.remove('active');
+        document.getElementById('ashta-online-form').classList.remove('hidden');
+        document.getElementById('ashta-local-form').classList.add('hidden');
+    };
 
-    document.getElementById('newGameBtn').addEventListener('click', () => {
-        if (confirm("Reset current game?")) {
-            window.Game.initGame();
-            if (Multiplayer.role === 'host') Multiplayer.sendState();
-        }
-    });
+    document.getElementById('start-ashta-local-btn').onclick = () => {
+        showScreen(screens.ashtaGame);
+        initAshtaBoardUI();
+    };
 
-    window.showGame = showGame;
+    document.getElementById('roll-sticks-btn').onclick = handleAshtaRoll;
+
+    // BUSINESS SETUP LOGIC
+    const countSelect = document.getElementById('biz-player-count');
+    countSelect.onchange = (e) => {
+        const val = parseInt(e.target.value);
+        document.querySelector('.biz-p3-field').classList.toggle('hidden', val < 3);
+        document.querySelector('.biz-p4-field').classList.toggle('hidden', val < 4);
+    };
+
+    document.getElementById('start-biz-local-btn').onclick = () => {
+        const pCount = parseInt(countSelect.value);
+        const names = [
+            document.getElementById('biz-p1-name').value,
+            document.getElementById('biz-p2-name').value,
+            document.getElementById('biz-p3-name').value,
+            document.getElementById('biz-p4-name').value
+        ];
+        showScreen(screens.bizGame);
+        initBusinessGame(names, pCount);
+    };
+
+    document.getElementById('biz-roll-btn').onclick = handleBizRoll;
+    document.getElementById('biz-buy-btn').onclick = handleBizBuy;
+    document.getElementById('biz-pass-btn').onclick = () => {
+        document.getElementById('biz-buy-btn').classList.add('hidden');
+        document.getElementById('biz-pass-btn').classList.add('hidden');
+        document.getElementById('biz-end-turn-btn').classList.remove('hidden');
+    };
+    document.getElementById('biz-jail-pay-btn').onclick = handleBizJailPay;
+    document.getElementById('biz-end-turn-btn').onclick = handleBizEndTurn;
+
+    // AUDIO TOGGLES
+    document.getElementById('ashta-audio-toggle').onclick = (e) => {
+        gameState.soundMuted = !gameState.soundMuted;
+        e.target.textContent = gameState.soundMuted ? '🔇' : '🔊';
+    };
 });
