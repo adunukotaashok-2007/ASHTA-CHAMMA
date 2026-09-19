@@ -38,15 +38,16 @@ const UI = {
     },
 
     renderSticks(player, value) {
-        const container = document.querySelector('.sticks-container');
-        const label = document.getElementById('stickOwnerLabel');
+        const p1Box = document.getElementById('p1-stick-box');
+        const p2Box = document.getElementById('p2-stick-box');
         
+        // HIDE opponent's sticks, SHOW active player's sticks
         if (player === 1) {
-            container.classList.remove('p2-turn');
-            label.textContent = "Player 1 Sticks";
+            p1Box.classList.add('active');
+            p2Box.classList.remove('active');
         } else {
-            container.classList.add('p2-turn');
-            label.textContent = "Player 2 Sticks";
+            p2Box.classList.add('active');
+            p1Box.classList.remove('active');
         }
 
         if (value === null) {
@@ -71,6 +72,16 @@ const UI = {
                 badge.className = "kill-badge locked";
             }
         });
+        
+        // BOARD ROTATION based on turn
+        const wrapper = document.getElementById('boardAndYards');
+        if (Multiplayer.role === 'guest') {
+            wrapper.classList.add('rotated');
+        } else if (Multiplayer.role === 'host') {
+            wrapper.classList.remove('rotated');
+        } else {
+            wrapper.classList.toggle('rotated', state.currentPlayer === 2);
+        }
     }
 };
 
@@ -144,8 +155,6 @@ class GameEngine {
 
     calculateNextPosition(player, currentPos, val) {
         const hasKill = this.gameState.hasKilled[player];
-        
-        // Clamps at step 23 (end of outer loop) if player hasn't killed an opponent yet
         if (!hasKill) {
             if (currentPos + val >= 23) return 23;
             return currentPos + val;
