@@ -21,7 +21,11 @@ const Sticks = {
     },
 
     animateSticks(value, callback) {
-        const sticks = document.querySelectorAll('.stick');
+        const currentPlayer = window.Game.gameState.currentPlayer;
+        
+        // ONLY ANIMATE THE ACTIVE PLAYER'S STICKS!
+        const sticks = document.querySelectorAll(`#sticksWrapper${currentPlayer} .stick`);
+        
         const resultVal = document.getElementById('resultValue');
         const resultName = document.getElementById('resultName');
         const display = document.querySelector('.throw-result-display');
