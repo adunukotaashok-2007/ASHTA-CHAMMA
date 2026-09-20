@@ -1,7 +1,6 @@
 /* APPLICATION ROUTER & UI EVENT LISTENERS */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // SCREEN NAVIGATION
     const screens = {
         select: document.getElementById('game-select-screen'),
         ashtaSetup: document.getElementById('ashta-setup-screen'),
@@ -11,8 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function showScreen(targetScreen) {
-        Object.values(screens).forEach(s => s.classList.remove('active'));
-        targetScreen.classList.add('active');
+        Object.values(screens).forEach(s => s && s.classList.remove('active'));
+        if (targetScreen) targetScreen.classList.add('active');
     }
 
     // MAIN MENU BUTTONS
