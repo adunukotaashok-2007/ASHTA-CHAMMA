@@ -46,7 +46,6 @@ let bizState = {
     properties: {},
     hasRolled: false,
     inJail: [false, false, false, false],
-    jailTurns: [0, 0, 0, 0],
     gameOver: false
 };
 
@@ -57,7 +56,6 @@ function initBusinessGame(playerNames, playerCount = 2) {
     bizState.gameOver = false;
     bizState.properties = {};
     bizState.inJail = [false, false, false, false];
-    bizState.jailTurns = [0, 0, 0, 0];
 
     const colors = ['token-p1', 'token-p2', 'token-p3', 'token-p4'];
     bizState.players = [];
@@ -98,6 +96,7 @@ function getGridAreaForIndex(index) {
 
 function renderBusinessBoard() {
     const boardEl = document.getElementById('business-board');
+    if (!boardEl) return;
     boardEl.querySelectorAll('.biz-cell').forEach(c => c.remove());
 
     BUSINESS_PROPERTIES.forEach(prop => {
@@ -112,7 +111,6 @@ function renderBusinessBoard() {
         if (prop.type === 'property') {
             cell.innerHTML = `
                 <div class="color-bar color-${prop.group}"></div>
-                <div class="houses-container" id="houses-cell-${prop.id}"></div>
                 <div class="cell-name">${prop.name}</div>
                 <div class="cell-price">₹${prop.price}</div>
             `;
@@ -141,8 +139,8 @@ function renderBusinessBoard() {
 }
 
 function updateBizUI() {
-    // Render Player Summary
     const summaryContainer = document.getElementById('biz-players-summary');
+    if (!summaryContainer) return;
     summaryContainer.innerHTML = '';
 
     bizState.players.forEach((p, idx) => {
@@ -155,7 +153,6 @@ function updateBizUI() {
         summaryContainer.appendChild(pCard);
     });
 
-    // Render Tokens & Owners
     BUSINESS_PROPERTIES.forEach(prop => {
         const tokenLayer = document.getElementById(`tokens-cell-${prop.id}`);
         if (tokenLayer) {
@@ -168,27 +165,11 @@ function updateBizUI() {
                 }
             });
         }
-
-        // Owner indicators & houses
-        const propState = bizState.properties[prop.id];
-        if (propState && propState.owner !== null) {
-            const cell = document.querySelector(`.biz-cell[data-id="${prop.id}"]`);
-            if (cell) {
-                let tag = cell.querySelector('.owner-tag');
-                if (!tag) {
-                    tag = document.createElement('div');
-                    tag.className = 'owner-tag';
-                    cell.appendChild(tag);
-                }
-                const ownerPlayer = bizState.players[propState.owner];
-                tag.style.background = ownerPlayer ? (ownerPlayer.id === 0 ? '#ef4444' : '#3b82f6') : '#999';
-            }
-        }
     });
 
-    // Turn Text & Controls
     const curr = bizState.players[bizState.currentPlayer];
-    document.getElementById('biz-turn-text').textContent = `${curr.name}'s Turn`;
+    const turnText = document.getElementById('biz-turn-text');
+    if (turnText) turnText.textContent = `${curr.name}'s Turn`;
 
     const rollBtn = document.getElementById('biz-roll-btn');
     const buyBtn = document.getElementById('biz-buy-btn');
@@ -197,15 +178,15 @@ function updateBizUI() {
     const endTurnBtn = document.getElementById('biz-end-turn-btn');
 
     if (!bizState.hasRolled) {
-        rollBtn.classList.remove('hidden');
-        buyBtn.classList.add('hidden');
-        passBtn.classList.add('hidden');
-        endTurnBtn.classList.add('hidden');
+        if (rollBtn) rollBtn.classList.remove('hidden');
+        if (buyBtn) buyBtn.classList.add('hidden');
+        if (passBtn) passBtn.classList.add('hidden');
+        if (endTurnBtn) endTurnBtn.classList.add('hidden');
 
         if (bizState.inJail[curr.id]) {
-            jailPayBtn.classList.remove('hidden');
+            if (jailPayBtn) jailPayBtn.classList.remove('hidden');
         } else {
-            jailPayBtn.classList.add('hidden');
+            if (jailPayBtn) jailPayBtn.classList.add('hidden');
         }
     }
 }
@@ -238,7 +219,6 @@ function handleBizRoll() {
     bizState.hasRolled = true;
     document.getElementById('biz-roll-btn').classList.add('hidden');
 
-    // Move player
     let newPos = curr.position + total;
     if (newPos >= 36) {
         newPos -= 36;
@@ -269,7 +249,6 @@ function handleBizLanding(player, pos) {
             promptMsg.textContent = `Welcome back to your property, ${prop.name}!`;
             endTurnBtn.classList.remove('hidden');
         } else {
-            // Rent Payment
             const owner = bizState.players[state.owner];
             let rentCost = prop.rent;
 
@@ -287,13 +266,10 @@ function handleBizLanding(player, pos) {
         checkBankruptcy(player);
         endTurnBtn.classList.remove('hidden');
     } else if (prop.type === 'gotojail') {
-        player.position = 9; // Jail
+        player.position = 9;
         bizState.inJail[player.id] = true;
         addBizLog(`👮 ${player.name} went directly to JAIL!`);
         promptMsg.textContent = `You are sent to Jail!`;
-        endTurnBtn.classList.remove('hidden');
-    } else if (['chance', 'chest'].includes(prop.type)) {
-        handleChanceCard(player);
         endTurnBtn.classList.remove('hidden');
     } else {
         promptMsg.textContent = prop.desc || `Landed on ${prop.name}.`;
@@ -301,20 +277,6 @@ function handleBizLanding(player, pos) {
     }
 
     updateBizUI();
-}
-
-function handleChanceCard(player) {
-    const cards = [
-        { text: "Bank Dividend! Collect ₹1,500", amount: 1500 },
-        { text: "Speeding Fine! Pay ₹500", amount: -500 },
-        { text: "Stock Market Bonus! Collect ₹2,000", amount: 2000 },
-        { text: "Property Repair! Pay ₹1,000", amount: -1000 }
-    ];
-    const card = cards[Math.floor(Math.random() * cards.length)];
-    player.money += card.amount;
-    addBizLog(`❓ Chance: ${card.text}`);
-    document.getElementById('biz-prompt-msg').textContent = card.text;
-    checkBankruptcy(player);
 }
 
 function handleBizBuy() {
@@ -373,6 +335,7 @@ function handleBizEndTurn() {
 
 function addBizLog(msg) {
     const logEl = document.getElementById('biz-log');
+    if (!logEl) return;
     const entry = document.createElement('div');
     entry.className = 'log-entry';
     entry.textContent = msg;
