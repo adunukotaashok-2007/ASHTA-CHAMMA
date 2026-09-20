@@ -11,22 +11,22 @@
 <body>
     <div id="app-container">
 
-        <!-- GAME SELECTION SCREEN -->
+        <!-- 1. MAIN GAME SELECT SCREEN -->
         <section id="game-select-screen" class="screen active">
             <div class="logo-box">
                 <h1>🎲 CLASSIC BOARD GAMES</h1>
-                <p>Traditional Ashta Chamma & Business Empire</p>
+                <p>Select a Game to Play</p>
             </div>
             
             <div class="game-cards-container">
-                <div class="game-card" id="card-ashta">
+                <div class="game-card">
                     <div class="card-icon">🐚</div>
                     <h2>Ashta Chamma (Barakatta)</h2>
                     <p>Traditional 7×7 Shell Stick Game. Capture opponent pawns, navigate inner spirals, and reach the center home!</p>
                     <button class="btn btn-primary" id="select-ashta-btn">Play Ashta Chamma</button>
                 </div>
                 
-                <div class="game-card" id="card-business">
+                <div class="game-card">
                     <div class="card-icon">💼</div>
                     <h2>Business Board Game</h2>
                     <p>Classic Property Empire Game! Buy cities, build houses, collect rent, avoid tax & jail, and bankrupt rivals.</p>
@@ -35,7 +35,7 @@
             </div>
         </section>
 
-        <!-- ASHTA CHAMMA SETUP SCREEN -->
+        <!-- 2. ASHTA CHAMMA SETUP SCREEN -->
         <section id="ashta-setup-screen" class="screen">
             <button class="btn btn-back back-to-menu-btn">← Main Menu</button>
             <div class="logo-box">
@@ -89,7 +89,7 @@
             </div>
         </section>
 
-        <!-- BUSINESS SETUP SCREEN -->
+        <!-- 3. BUSINESS SETUP SCREEN -->
         <section id="business-setup-screen" class="screen">
             <button class="btn btn-back back-to-menu-btn">← Main Menu</button>
             <div class="logo-box">
@@ -100,7 +100,6 @@
             <div class="setup-card">
                 <div class="mode-selector">
                     <button class="mode-btn active" id="biz-mode-local">Local Hotseat</button>
-                    <button class="mode-btn" id="biz-mode-online">Online Multiplayer</button>
                 </div>
 
                 <div id="biz-local-form" class="form-group">
@@ -130,36 +129,10 @@
                     </div>
                     <button class="btn btn-action" id="start-biz-local-btn">Start Business Game</button>
                 </div>
-
-                <div id="biz-online-form" class="form-group hidden">
-                    <div class="online-tabs">
-                        <button class="tab-btn active" id="biz-tab-create">Host Room</button>
-                        <button class="tab-btn" id="biz-tab-join">Join Room</button>
-                    </div>
-
-                    <div id="biz-host-panel" class="tab-content">
-                        <p>Create a room and share code with Player 2:</p>
-                        <button class="btn btn-secondary" id="biz-create-room-btn">Create Room Code</button>
-                        <div id="biz-room-display" class="room-code-display hidden">
-                            <span>Room ID: </span><strong id="biz-room-id-text">---</strong>
-                            <button id="biz-copy-code-btn" class="btn-sm">Copy</button>
-                        </div>
-                        <p id="biz-host-status" class="status-text">Waiting to host...</p>
-                    </div>
-
-                    <div id="biz-join-panel" class="tab-content hidden">
-                        <div class="input-field">
-                            <label for="biz-join-code-input">Enter Host Room ID:</label>
-                            <input type="text" id="biz-join-code-input" placeholder="e.g. biz-1234">
-                        </div>
-                        <button class="btn btn-action" id="biz-join-room-btn">Connect & Join</button>
-                        <p id="biz-join-status" class="status-text"></p>
-                    </div>
-                </div>
             </div>
         </section>
 
-        <!-- ASHTA CHAMMA GAME SCREEN -->
+        <!-- 4. ASHTA CHAMMA GAME SCREEN -->
         <section id="game-screen" class="screen">
             <header class="game-header">
                 <button class="btn-icon back-to-menu-btn" title="Back to Menu">🏠 Menu</button>
@@ -218,7 +191,7 @@
             </footer>
         </section>
 
-        <!-- BUSINESS GAME SCREEN -->
+        <!-- 5. BUSINESS GAME SCREEN -->
         <section id="business-screen" class="screen">
             <header class="game-header">
                 <button class="btn-icon back-to-menu-btn" title="Back to Menu">🏠 Menu</button>
@@ -230,13 +203,11 @@
 
             <div class="business-board-wrapper">
                 <div id="business-board" class="business-grid">
-                    <!-- 36 Perimeter Cells generated dynamically via js/business.js -->
+                    <!-- Dynamic perimeter cells generated by js/business.js -->
 
-                    <!-- CENTER CONTROL HUB (Grid area 2/2 to 10/10) -->
+                    <!-- CENTER CONTROL HUB -->
                     <div class="biz-center-hub">
-                        <div class="biz-players-bar" id="biz-players-summary">
-                            <!-- Populated with player status cards -->
-                        </div>
+                        <div class="biz-players-bar" id="biz-players-summary"></div>
 
                         <div class="biz-action-center">
                             <div class="dice-display-area">
