@@ -90,7 +90,7 @@ function renderAshtaState() {
                 }
                 const yardEl = document.getElementById(`p${p}-yard`);
                 if (yardEl) yardEl.appendChild(yardPawn);
-            } else if (pathIdx < 49) {
+            } else if (pathIdx < 46) {
                 // On Board
                 const boardSquareIndex = getPlayerPath(p)[pathIdx];
                 const cell = document.querySelector(`.cell[data-index="${boardSquareIndex}"]`);
@@ -185,11 +185,13 @@ function getMovablePawns(player, throwVal) {
     pawns.forEach((currIdx, pawnIdx) => {
         if (currIdx === -1) {
             if (throwVal === 1 || throwVal === 6) valid.push(pawnIdx);
-        } else if (currIdx < 48) {
+        } else if (currIdx < 45) { // 45 is Center Home
             const nextIdx = currIdx + throwVal;
-            if (nextIdx <= 48) {
-                if (nextIdx >= 24 && !killed) {
-                    if (currIdx < 23) valid.push(pawnIdx);
+            if (nextIdx <= 45) {
+                // Outer loop ends at index 20. Middle starts at 21. 
+                // Must have Kill to pass 20.
+                if (nextIdx >= 21 && !killed) {
+                    if (currIdx < 20) valid.push(pawnIdx);
                 } else {
                     valid.push(pawnIdx);
                 }
@@ -204,6 +206,7 @@ function handlePawnClick(player, pawnIdx) {
 
     const throwVal = gameState.lastThrow;
     const path = getPlayerPath(player);
+    let gotKill = false;
 
     if (gameState.pawns[player][pawnIdx] === -1) {
         if (throwVal === 1) {
@@ -215,20 +218,25 @@ function handlePawnClick(player, pawnIdx) {
         }
     } else {
         let target = gameState.pawns[player][pawnIdx] + throwVal;
-        if (target >= 24 && !gameState.hasKilled[player]) {
-            target = 23;
+        
+        // Block at Outer Loop End if NO Kill
+        if (target >= 21 && !gameState.hasKilled[player]) {
+            target = 20; 
         }
         gameState.pawns[player][pawnIdx] = target;
 
         const targetSquare = path[target];
+        
+        // KILL LOGIC
         if (!SAFE_SPACES.has(targetSquare)) {
             const opponent = player === 1 ? 2 : 1;
             const oppPath = getPlayerPath(opponent);
             
             gameState.pawns[opponent].forEach((oppPos, oppIdx) => {
                 if (oppPos !== -1 && oppPath[oppPos] === targetSquare) {
-                    gameState.pawns[opponent][oppIdx] = -1;
+                    gameState.pawns[opponent][oppIdx] = -1; // Send opponent to yard
                     gameState.hasKilled[player] = true;
+                    gotKill = true; // Flags that we secured a kill this turn!
                     playSound('kill');
                 }
             });
@@ -239,14 +247,20 @@ function handlePawnClick(player, pawnIdx) {
     gameState.waitingForPawn = false;
     gameState.movablePawns = [];
 
-    if (gameState.pawns[player].every(pos => pos === 48)) {
+    // WIN CONDITION
+    if (gameState.pawns[player].every(pos => pos === 45)) {
         gameState.gameOver = true;
         playSound('win');
         alert(`🎉 Player ${player} Wins Ashta Chamma!`);
         return;
     }
 
-    if ([1, 6, 12].includes(throwVal)) {
+    // EXTRA TURN LOGIC (Roll 1, 6, 12 -- OR -- Get a Kill)
+    if (gotKill || [1, 6, 12].includes(throwVal)) {
+        if (gotKill) {
+            const resultDisplay = document.getElementById('throw-result-display');
+            if (resultDisplay) resultDisplay.textContent = `Kill! Extra Turn!`;
+        }
         renderAshtaState();
     } else {
         switchTurn();
