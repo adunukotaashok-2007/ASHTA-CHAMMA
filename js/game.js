@@ -1,267 +1,263 @@
-const UI = {
-    setStatus(text, important=false) {
-        document.getElementById('actionText').textContent = text;
-        if(important) document.getElementById('systemMsg').textContent = text;
+/* ASHTA CHAMMA GAME STATE & LOGIC */
+
+let gameState = {
+    currentPlayer: 1,
+    lastThrow: null,
+    gameOver: false,
+    waitingForPawn: false,
+    movablePawns: [],
+    hasKilled: { 1: false, 2: false },
+    pawns: {
+        1: [-1, -1, -1, -1, -1, -1],
+        2: [-1, -1, -1, -1, -1, -1]
     },
-    
-    renderBoard(state) {
-        const p1Yard = document.getElementById('p1-yard');
-        const p2Yard = document.getElementById('p2-yard');
-        p1Yard.innerHTML = '';
-        p2Yard.innerHTML = '';
-        document.querySelectorAll('.cell').forEach(c => c.innerHTML = '');
-
-        const createPawn = (player, index, pos) => {
-            const p = document.createElement('div');
-            p.className = `pawn p${player}`;
-            p.textContent = index + 1;
-            if (state.currentPlayer === player && state.waitingForPawn && state.movablePawns.includes(index)) {
-                p.classList.add('highlight');
-                p.onclick = () => window.Game.handlePawnClick(player, index);
-            }
-            return p;
-        };
-
-        [1, 2].forEach(player => {
-            state.pawns[player].forEach((pos, index) => {
-                const pawnEl = createPawn(player, index, pos);
-                if (pos === -1) {
-                    const yard = player === 1 ? p1Yard : p2Yard;
-                    yard.appendChild(pawnEl);
-                } else if (pos >= 0 && pos < 48) {
-                    const boardIdx = Board.getPathIndex(player, pos);
-                    const cell = document.querySelector(`.cell[data-index="${boardIdx}"]`);
-                    if(cell) cell.appendChild(pawnEl);
-                }
-            });
-        });
-    },
-
-    renderSticks(player, value) {
-        const p1Box = document.getElementById('p1-stick-box');
-        const p2Box = document.getElementById('p2-stick-box');
-        
-        if (player === 1) {
-            p1Box.classList.add('active');
-            p2Box.classList.remove('active');
-        } else {
-            p2Box.classList.add('active');
-            p1Box.classList.remove('active');
-        }
-
-        if (value === null) {
-            document.querySelectorAll('.stick-pips').forEach(p => p.innerHTML='');
-            document.getElementById('resultValue').textContent = "?";
-            document.getElementById('resultName').textContent = "Ready";
-            document.querySelector('.throw-result-display').classList.remove('extra-glow');
-        }
-    },
-
-    updateScores(state) {
-        document.getElementById('p1-home').textContent = `${state.homeCount[1]}/6 Home`;
-        document.getElementById('p2-home').textContent = `${state.homeCount[2]}/6 Home`;
-
-        [1, 2].forEach(p => {
-            const badge = document.getElementById(`p${p}-kill`);
-            if (state.hasKilled[p]) {
-                badge.textContent = "⚔️ Kill: YES";
-                badge.className = "kill-badge unlocked";
-            } else {
-                badge.textContent = "⚔️ Kill: NO";
-                badge.className = "kill-badge locked";
-            }
-        });
-        
-        const wrapper = document.getElementById('boardAndYards');
-        if (Multiplayer.role === 'guest') {
-            wrapper.classList.add('rotated');
-        } else if (Multiplayer.role === 'host') {
-            wrapper.classList.remove('rotated');
-        } else {
-            wrapper.classList.toggle('rotated', state.currentPlayer === 2);
-        }
-    }
+    soundMuted: false
 };
 
-class GameEngine {
-    constructor() {
-        this.initGame();
+// AUDIO SYNTHESIS
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function initAudio() {
+    if (!audioCtx) audioCtx = new AudioCtx();
+}
+
+function playTone(freq, duration, type = 'sine') {
+    if (gameState.soundMuted) return;
+    initAudio();
+    if (!audioCtx) return;
+
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+        osc.stop(audioCtx.currentTime + duration);
+    } catch (e) {}
+}
+
+function playSound(name) {
+    if (name === 'roll') playTone(300, 0.15, 'square');
+    if (name === 'move') playTone(500, 0.1, 'sine');
+    if (name === 'kill') playTone(200, 0.2, 'sawtooth');
+    if (name === 'win') playTone(600, 0.3, 'triangle');
+}
+
+function initAshtaBoardUI() {
+    const boardEl = document.getElementById('ashta-board');
+    if (!boardEl) return;
+    boardEl.innerHTML = '';
+
+    for (let i = 0; i < 49; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.index = i;
+
+        if (SAFE_SPACES.has(i)) cell.classList.add('safe-zone');
+        if (i === 24) cell.classList.add('center-home');
+        boardEl.appendChild(cell);
     }
+    renderAshtaState();
+}
 
-    initGame() {
-        this.gameState = {
-            currentPlayer: 1,
-            lastThrow: null,
-            gameOver: false,
-            waitingForPawn: false,
-            movablePawns: [],
-            hasKilled: { 1: false, 2: false },
-            pawns: {
-                1: [-1, -1, -1, -1, -1, -1],
-                2: [-1, -1, -1, -1, -1, -1]
-            },
-            homeCount: { 1: 0, 2: 0 }
-        };
-        this.updateUI();
-    }
+function renderAshtaState() {
+    // Clear board pawns
+    document.querySelectorAll('.cell .pawn').forEach(el => el.remove());
+    
+    // Clear yards
+    const y1 = document.getElementById('p1-yard');
+    const y2 = document.getElementById('p2-yard');
+    if (y1) y1.innerHTML = '';
+    if (y2) y2.innerHTML = '';
 
-    handleThrow() {
-        if (this.gameState.waitingForPawn || this.gameState.gameOver) return;
-
-        const btn = document.getElementById('throwBtn');
-        btn.disabled = true;
-
-        Sticks.roll((val) => {
-            this.gameState.lastThrow = val;
-            this.calculateMovablePawns(val);
-
-            if (this.gameState.movablePawns.length === 0) {
-                UI.setStatus(`No valid moves for ${val}! Swapping turns...`, true);
-                setTimeout(() => this.nextTurn(), 1500);
-            } else {
-                this.gameState.waitingForPawn = true;
-                if (val === 6 && this.gameState.pawns[this.gameState.currentPlayer].includes(-1)) {
-                    UI.setStatus("Throw is 6! Tap a yard pawn to bring ALL pawns out!");
-                } else {
-                    UI.setStatus(`Select a pawn to move ${val} steps`);
+    // Render Pawns
+    [1, 2].forEach(p => {
+        gameState.pawns[p].forEach((pathIdx, pawnIdx) => {
+            if (pathIdx === -1) {
+                // In Yard
+                const yardPawn = document.createElement('div');
+                yardPawn.className = `yard-pawn pawn-p${p}`;
+                yardPawn.dataset.player = p;
+                yardPawn.dataset.pawn = pawnIdx;
+                
+                if (gameState.waitingForPawn && gameState.currentPlayer === p && gameState.movablePawns.includes(pawnIdx)) {
+                    yardPawn.classList.add('movable');
+                    yardPawn.onclick = () => handlePawnClick(p, pawnIdx);
                 }
-            }
-            
-            if (Multiplayer.role === 'host') Multiplayer.sendState();
-            this.updateUI();
-            btn.disabled = false;
-        });
-    }
+                const yardEl = document.getElementById(`p${p}-yard`);
+                if (yardEl) yardEl.appendChild(yardPawn);
+            } else if (pathIdx < 49) {
+                // On Board
+                const boardSquareIndex = getPlayerPath(p)[pathIdx];
+                const cell = document.querySelector(`.cell[data-index="${boardSquareIndex}"]`);
+                if (cell) {
+                    const pawn = document.createElement('div');
+                    pawn.className = `pawn pawn-p${p}`;
+                    pawn.dataset.player = p;
+                    pawn.dataset.pawn = pawnIdx;
 
-    calculateMovablePawns(val) {
-        const player = this.gameState.currentPlayer;
-        const pawns = this.gameState.pawns[player];
-        const movable = [];
-
-        pawns.forEach((pos, index) => {
-            if (pos === -1) {
-                if (val === 1 || val === 6) movable.push(index);
-            } else if (pos >= 0 && pos < 48) {
-                const targetPos = this.calculateNextPosition(player, pos, val);
-                if (targetPos > pos && targetPos <= 48) {
-                    movable.push(index);
-                }
-            }
-        });
-        this.gameState.movablePawns = movable;
-    }
-
-    calculateNextPosition(player, currentPos, val) {
-        const hasKill = this.gameState.hasKilled[player];
-        if (!hasKill) {
-            if (currentPos + val >= 23) return 23;
-            return currentPos + val;
-        }
-        return currentPos + val;
-    }
-
-    handlePawnClick(player, pawnIndex) {
-        if (!this.gameState.waitingForPawn || player !== this.gameState.currentPlayer) return;
-        if (!this.gameState.movablePawns.includes(pawnIndex)) return;
-
-        const val = this.gameState.lastThrow;
-        const currentPos = this.gameState.pawns[player][pawnIndex];
-
-        if (currentPos === -1 && val === 6) {
-            this.gameState.pawns[player].forEach((pPos, i) => {
-                if (pPos === -1) this.gameState.pawns[player][i] = 0;
-            });
-            Sound.playMoveSound();
-            this.finishMove(player, false);
-            return;
-        }
-
-        let nextPos = currentPos === -1 ? 0 : this.calculateNextPosition(player, currentPos, val);
-        this.movePawn(player, pawnIndex, nextPos);
-    }
-
-    movePawn(player, pawnIndex, nextPos) {
-        let captured = false;
-
-        if (nextPos >= 0 && nextPos < 48) {
-            const boardIdx = Board.getPathIndex(player, nextPos);
-            if (!Board.SAFE_SPACES.has(boardIdx)) {
-                const opponent = player === 1 ? 2 : 1;
-                this.gameState.pawns[opponent].forEach((pos, i) => {
-                    if (pos >= 0 && pos < 48 && Board.getPathIndex(opponent, pos) === boardIdx) {
-                        this.gameState.pawns[opponent][i] = -1;
-                        captured = true;
+                    if (gameState.waitingForPawn && gameState.currentPlayer === p && gameState.movablePawns.includes(pawnIdx)) {
+                        pawn.classList.add('movable');
+                        pawn.onclick = () => handlePawnClick(p, pawnIdx);
                     }
-                });
+                    cell.appendChild(pawn);
+                }
             }
-        }
+        });
+    });
 
-        if (captured) {
-            this.gameState.hasKilled[player] = true;
-        }
+    // Update Headers & Stick Visibility
+    const turnText = document.getElementById('ashta-turn-text');
+    const killBadge = document.getElementById('ashta-kill-badge');
+    if (turnText) turnText.textContent = `Player ${gameState.currentPlayer}'s Turn`;
+    if (killBadge) killBadge.textContent = gameState.hasKilled[gameState.currentPlayer] ? "Kill Secured ✓" : "No Kill Yet";
 
-        if (nextPos === 48) {
-            this.gameState.pawns[player][pawnIndex] = 48;
-            this.gameState.homeCount[player]++;
-            Sound.playHomeSound();
+    const p1Box = document.getElementById('p1-sticks-box');
+    const p2Box = document.getElementById('p2-sticks-box');
+    if (p1Box && p2Box) {
+        if (gameState.currentPlayer === 1) {
+            p1Box.classList.remove('hidden-stick-box');
+            p2Box.classList.add('hidden-stick-box');
         } else {
-            this.gameState.pawns[player][pawnIndex] = nextPos;
-            captured ? Sound.playCaptureSound() : Sound.playMoveSound();
+            p2Box.classList.remove('hidden-stick-box');
+            p1Box.classList.add('hidden-stick-box');
         }
-
-        this.finishMove(player, captured);
     }
 
-    finishMove(player, captured) {
-        const isSpecial = [1, 6, 12].includes(this.gameState.lastThrow);
-        this.gameState.waitingForPawn = false;
-        this.gameState.movablePawns = [];
+    // Auto rotate board for hotseat mode
+    if (window.isHotseat) {
+        const boardWrapper = document.getElementById('board-wrapper');
+        const p1Yard = document.getElementById('p1-yard-container');
+        const p2Yard = document.getElementById('p2-yard-container');
 
-        if (this.gameState.homeCount[player] === 6) {
-            this.gameState.gameOver = true;
-            Sound.playWinSound();
-            UI.setStatus(`PLAYER ${player} WINS!`, true);
-        } else {
-            if (isSpecial || captured) {
-                UI.setStatus(captured ? "Kill! Extra Turn & Inner Loop Unlocked!" : "Extra Turn!", true);
+        if (boardWrapper && p1Yard && p2Yard) {
+            if (gameState.currentPlayer === 2) {
+                boardWrapper.classList.add('rotate-180');
+                p1Yard.classList.add('rotate-180');
+                p2Yard.classList.add('rotate-180');
             } else {
-                this.nextTurn();
-                return;
+                boardWrapper.classList.remove('rotate-180');
+                p1Yard.classList.remove('rotate-180');
+                p2Yard.classList.remove('rotate-180');
             }
-        }
-        
-        if (Multiplayer.role === 'host') Multiplayer.sendState();
-        this.updateUI();
-    }
-
-    nextTurn() {
-        this.gameState.currentPlayer = this.gameState.currentPlayer === 1 ? 2 : 1;
-        this.gameState.lastThrow = null;
-        this.gameState.waitingForPawn = false;
-        Sound.playTurnSound();
-        if (Multiplayer.role === 'host') Multiplayer.sendState();
-        this.updateUI();
-    }
-
-    updateUI() {
-        UI.renderBoard(this.gameState);
-        UI.renderSticks(this.gameState.currentPlayer, this.gameState.lastThrow);
-        UI.updateScores(this.gameState);
-        
-        const turnText = document.getElementById('turnText');
-        const throwBtn = document.getElementById('throwBtn');
-        
-        if (this.gameState.gameOver) {
-            turnText.textContent = "Game Over!";
-            throwBtn.style.display = "none";
-        } else {
-            turnText.textContent = `Player ${this.gameState.currentPlayer}'s Turn`;
-            throwBtn.style.display = this.gameState.waitingForPawn ? "none" : "block";
-            
-            document.getElementById('p1-bar').classList.toggle('active', this.gameState.currentPlayer === 1);
-            document.getElementById('p2-bar').classList.toggle('active', this.gameState.currentPlayer === 2);
         }
     }
 }
 
-window.Game = new GameEngine();
+function handleAshtaRoll() {
+    if (gameState.gameOver || gameState.waitingForPawn) return;
+
+    playSound('roll');
+    const rolled = rollSticks();
+    gameState.lastThrow = rolled.value;
+
+    updateSticksUI(gameState.currentPlayer, rolled);
+    const resultDisplay = document.getElementById('throw-result-display');
+    if (resultDisplay) resultDisplay.textContent = `Throw: ${rolled.value}`;
+
+    // Find movable pawns
+    gameState.movablePawns = getMovablePawns(gameState.currentPlayer, rolled.value);
+
+    if (gameState.movablePawns.length === 0) {
+        if (resultDisplay) resultDisplay.textContent = `Throw: ${rolled.value} (No Valid Moves)`;
+        setTimeout(() => {
+            if (![1, 6, 12].includes(rolled.value)) {
+                switchTurn();
+            } else {
+                renderAshtaState();
+            }
+        }, 1200);
+    } else {
+        gameState.waitingForPawn = true;
+        renderAshtaState();
+    }
+}
+
+function getMovablePawns(player, throwVal) {
+    const valid = [];
+    const pawns = gameState.pawns[player];
+    const killed = gameState.hasKilled[player];
+
+    pawns.forEach((currIdx, pawnIdx) => {
+        if (currIdx === -1) {
+            if (throwVal === 1 || throwVal === 6) valid.push(pawnIdx);
+        } else if (currIdx < 48) {
+            const nextIdx = currIdx + throwVal;
+            if (nextIdx <= 48) {
+                if (nextIdx >= 24 && !killed) {
+                    if (currIdx < 23) valid.push(pawnIdx);
+                } else {
+                    valid.push(pawnIdx);
+                }
+            }
+        }
+    });
+    return valid;
+}
+
+function handlePawnClick(player, pawnIdx) {
+    if (!gameState.waitingForPawn || player !== gameState.currentPlayer) return;
+
+    const throwVal = gameState.lastThrow;
+    const path = getPlayerPath(player);
+
+    if (gameState.pawns[player][pawnIdx] === -1) {
+        if (throwVal === 1) {
+            gameState.pawns[player][pawnIdx] = 0;
+        } else if (throwVal === 6) {
+            gameState.pawns[player].forEach((pos, idx) => {
+                if (pos === -1) gameState.pawns[player][idx] = 0;
+            });
+        }
+    } else {
+        let target = gameState.pawns[player][pawnIdx] + throwVal;
+        if (target >= 24 && !gameState.hasKilled[player]) {
+            target = 23;
+        }
+        gameState.pawns[player][pawnIdx] = target;
+
+        const targetSquare = path[target];
+        if (!SAFE_SPACES.has(targetSquare)) {
+            const opponent = player === 1 ? 2 : 1;
+            const oppPath = getPlayerPath(opponent);
+            
+            gameState.pawns[opponent].forEach((oppPos, oppIdx) => {
+                if (oppPos !== -1 && oppPath[oppPos] === targetSquare) {
+                    gameState.pawns[opponent][oppIdx] = -1;
+                    gameState.hasKilled[player] = true;
+                    playSound('kill');
+                }
+            });
+        }
+    }
+
+    playSound('move');
+    gameState.waitingForPawn = false;
+    gameState.movablePawns = [];
+
+    if (gameState.pawns[player].every(pos => pos === 48)) {
+        gameState.gameOver = true;
+        playSound('win');
+        alert(`🎉 Player ${player} Wins Ashta Chamma!`);
+        return;
+    }
+
+    if ([1, 6, 12].includes(throwVal)) {
+        renderAshtaState();
+    } else {
+        switchTurn();
+    }
+}
+
+function switchTurn() {
+    gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+    gameState.waitingForPawn = false;
+    gameState.movablePawns = [];
+    const resultDisplay = document.getElementById('throw-result-display');
+    if (resultDisplay) resultDisplay.textContent = 'Throw: -';
+    renderAshtaState();
+}
